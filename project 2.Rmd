@@ -1,0 +1,92 @@
+---
+title: "Project 2"
+author: "Jeffrey Zhuohui Liang"
+date: "3/24/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(MASS)
+library(caret)
+library(parallel)
+library(foreach)
+library(tidyverse)
+
+knitr::opts_chunk$set(
+  fig.height = 6,
+  fig.width = 8,
+  message = F,
+  echo = T,
+  warning = F,
+  cache = F
+)
+
+theme_set(theme_minimal() + theme(legend.position = "bottom", 
+                                  title = element_text(hjust = 0.5)))
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis",
+  digits = 3
+)
+
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+
+set.seed(123123)
+```
+
+```{r load_data, echo=F}
+sngcll = 
+  read_csv("ss.csv") %>% 
+  janitor::clean_names() %>% 
+  select(-x560,-cell_name)
+```
+
+
+# Method
+
+## Data Preparation
+
+```{r standardize_data}
+# drop gene that 90% is zero 
+drop_gene = 
+  sngcll %>% 
+  summarise(across(everything(),~sum(.x==0)/n()<0.9)) %>% 
+  slice(1) %>% 
+  unlist() %>% 
+  as.vector()
+
+sngcll_dp0 = 
+  sngcll[,drop_gene]
+```
+
+```{r pca}
+# PCA with scale
+sngcll_pca =
+  #predict(preProcess(sngcll_dp0,c("center","scale","pca")),sngcll_dp0)
+  prcomp( ~ .,
+          data = sngcll_dp0,
+          tol = sqrt(.Machine$double.eps),
+          center = T,
+          scale = T)
+
+summary(sngcll_pca)$importance %>% 
+  t() %>% 
+  .[seq(1,230,8),] %>% 
+  as_tibble(rownames = NA) %>% 
+  knitr::kable(digits = 2)
+```
+
+Using 90% as threshold for Principle component selection, we see that up to `r sum(summary(sngcll_pca)$importance[3,]<.9)` can explain 90% of the standard deviation in data.
+
+```{r EM_data}
+# EM data preparation
+sngcll_pca =
+  predict(preProcess(
+    sngcll_dp0,
+    c("center", "scale", "pca"),
+    pcaComp = sum(summary(sngcll_pca)$importance[3, ]<.9)
+  ), sngcll_dp0)
+```
+
+
