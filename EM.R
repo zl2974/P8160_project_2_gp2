@@ -65,6 +65,13 @@ gaussian_mixture =
               apply(data, 1, dmvnorm, mean = mu[x,], sigma = Sigma[[x]]),
           mc.cores = .cores
         )
+      # 2 N's element list
+      
+      Q = lapply(X=1:k,FUN = function(x) p[[x]]*Q[[x]]) %>% 
+        unlist() %>% 
+        matrix(.,nrow = N,byrow = F)
+      
+      Q = Q/sum(Q)
       
       
       # M step
@@ -74,7 +81,7 @@ gaussian_mixture =
           X = 1:k,
           FUN =
             function(x) {
-              q = Q[[x]]
+              q = Q[,x]
               nk = sum(q)
               mu = (q %*% data) / nk
               return(mu)
@@ -82,14 +89,14 @@ gaussian_mixture =
           mc.cores = .cores
         ) %>%
         unlist() %>%
-        matrix(., nrow = k)
+        matrix(., nrow = k,byrow = T)
       
       Sigma =
         mclapply(
           X = 1:k,
           FUN =
             function(x) {
-              q = Q[[x]]
+              q = Q[,x]
               nk = sum(q)
               g = data -mu[x,] #N*C - C
               Sigma = t(g)%*%(q*g) #1*N %*% N*C %*% C*N = 1*N
@@ -102,16 +109,19 @@ gaussian_mixture =
       p = 
         mclapply(
           X=1:k,
-          FUN = function(x) sum(Q[[x]])/N,
+          FUN = function(x) sum(Q[,x])/N,
           mc.cores = .cores
         )
       
       
     }
     
-    return(list(mu = mu,
-                sigma = Sigma,
-                p = p))
+    return(list(
+      Q = Q,
+      mu = mu,
+      sigma = Sigma,
+      p = p
+    ))
   }
 
 a = gaussian_mixture(sngcll_pca, 2)
