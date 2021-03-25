@@ -1,4 +1,6 @@
 library(mvtnorm)
+library(foreach)
+library(doParallel)
 library(parallel)
 library(tidyverse)
 
@@ -18,17 +20,18 @@ library(tidyverse)
 gaussian_mixture =
   function(data,
            k = 1,
-           max_iter = 10) {
-    data = as.matrix(data)
+           max_iter = 1e+5) {
+    
+    data = as.matrix(data) %>% scale()
     
     #test total cluster number
     if (nrow(data) < k)
       stop("Total amount of cluster cannot exceed row of data")
     
     #test if pca-ed
-    .tol = 1e-10
-    if (any((cor(data) - diag(ncol(data))) > .tol))
-      stop("input 'data' must be a pca result")
+    #.tol = 1e-10
+    #if (any((cor(data) - diag(ncol(data))) > .tol))
+    #  stop("input 'data' must be a pca result")
     
     # set-up
     ## row & col/parameters
@@ -64,58 +67,33 @@ gaussian_mixture =
             function(x)
               apply(data, 1, dmvnorm, mean = mu[x,], sigma = Sigma[[x]]),
           mc.cores = .cores
-        )
+        ) %>% 
+        do.call(cbind,.)
       
-      Q = lapply(X=1:k,FUN = function(x) p[[x]]*Q[[x]]) %>% 
-        unlist() %>% 
-        matrix(.,nrow = N,byrow = F)
-      
-      Q[Q<1e-10] = 0
-      
-      Q = Q/sum(Q) #N*k matrix
-      
+      tempmat <- matrix(rep(p,N),nrow=N,byrow = T)
+      Q = (Q * tempmat) / rowSums(Q * tempmat)
+
       
       # M step
       ## mu_update
-      mu =
-        mclapply(
-          X = 1:k,
-          FUN =
-            function(x) {
-              q = Q[,x]
-              nk = sum(q)
-              mu = (t(q)%*%data) / nk #1*C matrix
-              return(mu)
-            },
-          mc.cores = .cores
-        ) %>%
-        unlist() %>%
-        matrix(., nrow = k,byrow = T) # k*C matrix
+      mu0 = mu
+      mu = t(Q) %*% data / colSums(Q)
       
-      mu[mu<1e-10]=0
-      
-      Sigma =
-        mclapply(
-          X = 1:k,
-          FUN =
-            function(x) {
-              q = Q[, x]
-              nk = sum(q)
-              g = data - matrix(rep(mu[x,],N),nrow = N,byrow = T)
-              Sigma = t(g)%*% sqrt(q%*%t(q)) %*% (g) # C*N %*% N*1 %*% 1*N %*% N*C 
-              Sigma = Sigma / nk
-              Sigma[Sigma<1e-10] = 0
-              return(Sigma)
-            },
-          mc.cores = .cores
-        )
-      
-      p = 
-        mclapply(
-          X=1:k,
-          FUN = function(x) sum(Q[,x]),
-          mc.cores = .cores
-        )
+      Sigma = 
+        mclapply(1:k,
+                 FUN = 
+                   function(x){
+                     data_ = data - matrix(rep(mu0[x,],N),nrow = N, byrow = T)
+                     Sigma = matrix(0,C,C)
+                     for (i in 1:N){
+                       Sigma = Sigma + Q[i,x] * data_[i,] %*% t(data_[i,])
+                     }
+                     #Sigma = t(data_) %*% sqrt((Q[,x])%*%t(Q[,x])) %*% data_
+                     Sigma = Sigma/sum(Q[,x])
+                     return(Sigma)
+                   })
+
+      p = colSums(Q)/N
       
       
     }
@@ -127,5 +105,3 @@ gaussian_mixture =
       p = p
     ))
   }
-
-gaussian_mixture(sngcll_pca, 2)

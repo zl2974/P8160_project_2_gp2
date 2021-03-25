@@ -1,3 +1,8 @@
+library(foreach)
+library(doParallel)
+library(parallel)
+library(tidyverse)
+library(mvtnorm)
 
 EM_MG_algrm <- function(data, ncluster){
   
@@ -25,6 +30,10 @@ EM_MG_algrm <- function(data, ncluster){
       gamma <- cbind(gamma, gamma2)
     }
     
+    #gamma = foreach(j=1:ncluster,.combine = cbind,.inorder=T)%do%{
+    #  apply(data,1, dmvnorm, mean = mu[j,], sigma = covList[[j]])
+    #}
+
     # M- step: Calculate mu
     tempmat <- matrix(rep(p_j,N),nrow=N,byrow = T)
     r <- (gamma * tempmat) / rowSums(gamma * tempmat)  
@@ -38,6 +47,7 @@ EM_MG_algrm <- function(data, ncluster){
       }
       covList[[j]] <- sigma/sum(r[,j]) 
     }
+
     p_j <- colSums(r)/N
     count = count + 1
   }
@@ -46,5 +56,3 @@ EM_MG_algrm <- function(data, ncluster){
   cluster <- cluster[order(cluster[,1]),]
   return(list(mu = mu,covList = covList, p_j = p_j,cluster = cluster))
 }
-
-EM_MG_algrm(sngcll_pca,3)
