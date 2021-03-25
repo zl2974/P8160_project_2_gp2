@@ -18,7 +18,7 @@ library(tidyverse)
 gaussian_mixture =
   function(data,
            k = 1,
-           max_iter = 1e+2) {
+           max_iter = 10) {
     data = as.matrix(data)
     
     #test total cluster number
@@ -54,7 +54,7 @@ gaussian_mixture =
     
     iter = 1
     
-    while (iter < max_iter) {
+    while (iter <= max_iter) {
       iter = iter + 1
       ## E step
       Q =
@@ -65,13 +65,14 @@ gaussian_mixture =
               apply(data, 1, dmvnorm, mean = mu[x,], sigma = Sigma[[x]]),
           mc.cores = .cores
         )
-      # 2 N's element list
       
       Q = lapply(X=1:k,FUN = function(x) p[[x]]*Q[[x]]) %>% 
         unlist() %>% 
         matrix(.,nrow = N,byrow = F)
       
-      Q = Q/sum(Q)
+      Q[Q<1e-10] = 0
+      
+      Q = Q/sum(Q) #N*k matrix
       
       
       # M step
@@ -83,24 +84,27 @@ gaussian_mixture =
             function(x) {
               q = Q[,x]
               nk = sum(q)
-              mu = (q %*% data) / nk
+              mu = (t(q)%*%data) / nk #1*C matrix
               return(mu)
             },
           mc.cores = .cores
         ) %>%
         unlist() %>%
-        matrix(., nrow = k,byrow = T)
+        matrix(., nrow = k,byrow = T) # k*C matrix
+      
+      mu[mu<1e-10]=0
       
       Sigma =
         mclapply(
           X = 1:k,
           FUN =
             function(x) {
-              q = Q[,x]
+              q = Q[, x]
               nk = sum(q)
-              g = data -mu[x,] #N*C - C
-              Sigma = t(g)%*%(q*g) #1*N %*% N*C %*% C*N = 1*N
-              Sigma = Sigma/nk
+              g = data - matrix(rep(mu[x,],N),nrow = N,byrow = T)
+              Sigma = t(g)%*% sqrt(q%*%t(q)) %*% (g) # C*N %*% N*1 %*% 1*N %*% N*C 
+              Sigma = Sigma / nk
+              Sigma[Sigma<1e-10] = 0
               return(Sigma)
             },
           mc.cores = .cores
@@ -109,7 +113,7 @@ gaussian_mixture =
       p = 
         mclapply(
           X=1:k,
-          FUN = function(x) sum(Q[,x])/N,
+          FUN = function(x) sum(Q[,x]),
           mc.cores = .cores
         )
       
@@ -124,4 +128,4 @@ gaussian_mixture =
     ))
   }
 
-a = gaussian_mixture(sngcll_pca, 2)
+gaussian_mixture(sngcll_pca, 2)
