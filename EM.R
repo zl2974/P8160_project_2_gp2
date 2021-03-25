@@ -20,7 +20,7 @@ library(tidyverse)
 gaussian_mixture =
   function(data,
            k = 1,
-           max_iter = 1e+5) {
+           max_iter = 1) {
     
     data = as.matrix(data) %>% scale()
     
@@ -34,6 +34,20 @@ gaussian_mixture =
     #  stop("input 'data' must be a pca result")
     
     # set-up
+    
+    objective = 
+      function(data,cluster,p,mu,sigma){
+        Pr =
+          mclapply(1:nrow(data),
+                 FUN = function(x){
+                   k = cluster[[x]]
+                   p[[k]]*dmvnorm(data[x,],mu[k,],sigma[[k]])
+                 }) %>% 
+          unlist()
+        
+        return(sum(log(Pr)))
+      }
+    
     ## row & col/parameters
     
     N = nrow(data)
@@ -46,19 +60,26 @@ gaussian_mixture =
     
     ## list of mu (with PCA, assuming all mu are important)
     
-    mu = data[sample(1:N, k),] %>% as.matrix()
-    
+    #mu = data[sample(1:N, k),] %>% as.matrix()
+    mu = matrix(rnorm(k*C),k,C)
     
     ## list of matrix Sigma, which should be diagonal matrix b
     
     Sigma = rerun(k, diag(C))
     
+    cluster = rep(1,N)
+    
+    obj = objective(data,cluster,p,mu,Sigma)
+    obj0 = -Inf
+    
     # evaluation
     
     iter = 1
     
-    while (iter <= max_iter) {
+    while (abs(obj-obj0)>1e-2 & iter <= max_iter) {
+      print(obj)
       iter = iter + 1
+      obj0 = obj
       ## E step
       Q =
         mclapply(
@@ -79,6 +100,8 @@ gaussian_mixture =
       mu0 = mu
       mu = t(Q) %*% data / colSums(Q)
       
+      mu[is.na(mu)] = 0
+      
       Sigma = 
         mclapply(1:k,
                  FUN = 
@@ -90,18 +113,26 @@ gaussian_mixture =
                      }
                      #Sigma = t(data_) %*% sqrt((Q[,x])%*%t(Q[,x])) %*% data_
                      Sigma = Sigma/sum(Q[,x])
+                     #Sigma[Sigma<1e-6] = 0
+                     Sigma[is.na(Sigma)] = 0
                      return(Sigma)
                    })
+    
 
       p = colSums(Q)/N
       
+      cluster = which(Q == apply(Q, 1, max), arr.ind = T)
+      cluster = cluster[order(cluster[,1]),2]
       
+      obj = objective(data,cluster,p,mu,Sigma)
+        
     }
     
     return(list(
-      Q = Q,
+      obj = obj,
       mu = mu,
       sigma = Sigma,
-      p = p
+      p = p,
+      cluster = cluster
     ))
   }
