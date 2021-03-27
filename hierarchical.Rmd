@@ -15,7 +15,45 @@ library(dendextend) # for comparing two dendrograms
 
 ```{r}
 gene <- read_csv("ss.csv")
-gene <- na.omit(gene)
+gene <- scale(gene)
 head(gene)
+```
+
+```{r}
+# Dissimilarity matrix
+d <- dist(gene, method = "euclidean")
+
+# Hierarchical clustering using Complete Linkage
+hc1 <- hclust(d, method = "complete" )
+
+# Plot the obtained dendrogram
+plot(hc1, cex = 0.6, hang = -1)
+```
+```{r}
+# Ward's method
+hc5 <- hclust(d, method = "ward.D2" )
+
+# Cut tree into 4 groups
+sub_grp <- cutree(hc5, k = 3)
+
+# Number of members in each cluster
+table(sub_grp)
+```
+```{r}
+plot(hc5, cex = 0.6)
+rect.hclust(hc5, k = 3, border = 2:5)
+```
+```{r}
+fviz_cluster(list(data = gene, cluster = sub_grp))
+```
+```{r}
+fviz_nbclust(gene, FUN = hcut, method = "wss")
+```
+```{r}
+fviz_nbclust(gene, FUN = hcut, method = "silhouette")
+```
+```{r}
+gap_stat <- clusGap(gene, FUN = hcut, nstart = 25, K.max = 10, B = 50)
+fviz_gap_stat(gap_stat)
 ```
 
