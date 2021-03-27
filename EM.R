@@ -1,4 +1,6 @@
 library(mvtnorm)
+library(foreach)
+library(doParallel)
 library(parallel)
 library(tidyverse)
 
@@ -18,19 +20,34 @@ library(tidyverse)
 gaussian_mixture =
   function(data,
            k = 1,
-           max_iter = 10) {
-    data = as.matrix(data)
+           max_iter = 1) {
+    
+    data = as.matrix(data) %>% scale()
     
     #test total cluster number
     if (nrow(data) < k)
       stop("Total amount of cluster cannot exceed row of data")
     
     #test if pca-ed
-    .tol = 1e-10
-    if (any((cor(data) - diag(ncol(data))) > .tol))
-      stop("input 'data' must be a pca result")
+    #.tol = 1e-10
+    #if (any((cor(data) - diag(ncol(data))) > .tol))
+    #  stop("input 'data' must be a pca result")
     
     # set-up
+    
+    objective = 
+      function(data,cluster,p,mu,sigma){
+        Pr =
+          mclapply(1:nrow(data),
+                 FUN = function(x){
+                   k = cluster[[x]]
+                   p[[k]]*dmvnorm(data[x,],mu[k,],sigma[[k]])
+                 }) %>% 
+          unlist()
+        
+        return(sum(log(Pr)))
+      }
+    
     ## row & col/parameters
     
     N = nrow(data)
@@ -43,19 +60,26 @@ gaussian_mixture =
     
     ## list of mu (with PCA, assuming all mu are important)
     
-    mu = data[sample(1:N, k),] %>% as.matrix()
-    
+    #mu = data[sample(1:N, k),] %>% as.matrix()
+    mu = matrix(rnorm(k*C),k,C)
     
     ## list of matrix Sigma, which should be diagonal matrix b
     
     Sigma = rerun(k, diag(C))
     
+    cluster = rep(1,N)
+    
+    obj = objective(data,cluster,p,mu,Sigma)
+    obj0 = -Inf
+    
     # evaluation
     
     iter = 1
     
-    while (iter <= max_iter) {
+    while (abs(obj-obj0)>1e-2 & iter <= max_iter) {
+      print(obj)
       iter = iter + 1
+      obj0 = obj
       ## E step
       Q =
         mclapply(
@@ -64,68 +88,51 @@ gaussian_mixture =
             function(x)
               apply(data, 1, dmvnorm, mean = mu[x,], sigma = Sigma[[x]]),
           mc.cores = .cores
-        )
+        ) %>% 
+        do.call(cbind,.)
       
-      Q = lapply(X=1:k,FUN = function(x) p[[x]]*Q[[x]]) %>% 
-        unlist() %>% 
-        matrix(.,nrow = N,byrow = F)
-      
-      Q[Q<1e-10] = 0
-      
-      Q = Q/sum(Q) #N*k matrix
-      
+      tempmat <- matrix(rep(p,N),nrow=N,byrow = T)
+      Q = (Q * tempmat) / rowSums(Q * tempmat)
+
       
       # M step
       ## mu_update
-      mu =
-        mclapply(
-          X = 1:k,
-          FUN =
-            function(x) {
-              q = Q[,x]
-              nk = sum(q)
-              mu = (t(q)%*%data) / nk #1*C matrix
-              return(mu)
-            },
-          mc.cores = .cores
-        ) %>%
-        unlist() %>%
-        matrix(., nrow = k,byrow = T) # k*C matrix
+      mu0 = mu
+      mu = t(Q) %*% data / colSums(Q)
       
-      mu[mu<1e-10]=0
+      mu[is.na(mu)] = 0
       
-      Sigma =
-        mclapply(
-          X = 1:k,
-          FUN =
-            function(x) {
-              q = Q[, x]
-              nk = sum(q)
-              g = data - matrix(rep(mu[x,],N),nrow = N,byrow = T)
-              Sigma = t(g)%*% sqrt(q%*%t(q)) %*% (g) # C*N %*% N*1 %*% 1*N %*% N*C 
-              Sigma = Sigma / nk
-              Sigma[Sigma<1e-10] = 0
-              return(Sigma)
-            },
-          mc.cores = .cores
-        )
+      Sigma = 
+        mclapply(1:k,
+                 FUN = 
+                   function(x){
+                     data_ = data - matrix(rep(mu0[x,],N),nrow = N, byrow = T)
+                     Sigma = matrix(0,C,C)
+                     for (i in 1:N){
+                       Sigma = Sigma + Q[i,x] * data_[i,] %*% t(data_[i,])
+                     }
+                     #Sigma = t(data_) %*% sqrt((Q[,x])%*%t(Q[,x])) %*% data_
+                     Sigma = Sigma/sum(Q[,x])
+                     #Sigma[Sigma<1e-6] = 0
+                     Sigma[is.na(Sigma)] = 0
+                     return(Sigma)
+                   })
+    
+
+      p = colSums(Q)/N
       
-      p = 
-        mclapply(
-          X=1:k,
-          FUN = function(x) sum(Q[,x]),
-          mc.cores = .cores
-        )
+      cluster = which(Q == apply(Q, 1, max), arr.ind = T)
+      cluster = cluster[order(cluster[,1]),2]
       
-      
+      obj = objective(data,cluster,p,mu,Sigma)
+        
     }
     
     return(list(
-      Q = Q,
+      obj = obj,
       mu = mu,
       sigma = Sigma,
-      p = p
+      p = p,
+      cluster = cluster
     ))
   }
-
-gaussian_mixture(sngcll_pca, 2)
