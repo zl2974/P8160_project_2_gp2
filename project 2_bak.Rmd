@@ -1,0 +1,129 @@
+---
+title: "Project 2"
+author: "Jeffrey Zhuohui Liang"
+date: "3/24/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(MASS)
+library(caret)
+library(parallel)
+library(foreach)
+library(tidyverse)
+
+knitr::opts_chunk$set(
+  fig.height = 6,
+  fig.width = 8,
+  message = F,
+  echo = T,
+  warning = F,
+  cache = F
+)
+
+theme_set(theme_minimal() + theme(legend.position = "bottom", 
+                                  title = element_text(hjust = 0.5)))
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis",
+  digits = 3
+)
+
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+
+set.seed(123123)
+```
+
+```{r load_data, echo=F}
+sngcll = 
+  read_csv("ss.csv") %>% 
+  janitor::clean_names() %>% 
+  select(-x560,-cell_name)
+```
+
+
+# Method
+
+## Data Preparation
+
+```{r standardize_data}
+# drop gene that 90% is zero 
+drop_gene = 
+  sngcll %>% 
+  summarise(across(everything(),~sum(.x==0)/n()<0.9)) %>% 
+  slice(1) %>% 
+  unlist() %>% 
+  as.vector()
+
+sngcll_dp0 = 
+  sngcll[,]
+```
+
+```{r pca}
+# PCA with scale
+sngcll_pca =
+  #predict(preProcess(sngcll_dp0,c("center","scale","pca")),sngcll_dp0)
+  prcomp( ~ .,
+          data = sngcll_dp0,
+          tol = sqrt(.Machine$double.eps),
+          center = T,
+          scale = T)
+
+summary(sngcll_pca)$importance %>% 
+  t() %>% 
+  .[seq(1,230,8),] %>% 
+  as_tibble(rownames = NA) %>% 
+  knitr::kable(digits = 2)
+```
+
+Using 90% as threshold for Principle component selection, we see that up to `r sum(summary(sngcll_pca)$importance[3,]<.9)` can explain 90% of the standard deviation in data.
+
+```{r EM_data}
+# EM data preparation
+sngcll_pca =
+  predict(preProcess(
+    sngcll_dp0,
+    c("center", "scale", "pca","center","scale"),
+    pcaComp = sum(summary(sngcll_pca)$importance[3, ]<.8)
+  ), sngcll_dp0)
+```
+
+
+## Gaussian Mixture Model
+```{r simulate_example echo = F}
+mu1 = c(1,2,3)
+sgm1 = diag(mu1)
+mu2 = c(2,3,4)
+sgm2 = diag(mu2)
+mu3 = c(4,5,6)
+sgm3 = diag(mu3)
+mu = list(mu1,mu2,mu3)
+sgm = list(sgm1,sgm2,sgm3)
+cell = c(100,200,300)
+sim_data = mclapply(X=1:3,
+                    FUN = function(x){
+                      MASS::mvrnorm(cell[[x]],
+                                    mu[[x]],
+                                    sgm[[x]])
+                    },
+                    mc.cores = 3) %>% 
+  do.call(rbind,.)
+```
+
+
+```{r}
+source("EM2.R")
+EM_MG_algrm(sim_data,3)
+EM_MG_algrm(sngcll_pca,10)
+
+source("EM.R")
+gaussian_mixture(sim_data,3)
+rslt = list()
+for(i in seq(1,50,10)){
+  rslt[i] = 
+    gaussian_mixture(sngcll_pca,i)
+}
+
+```
+
