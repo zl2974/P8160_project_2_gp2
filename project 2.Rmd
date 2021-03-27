@@ -11,6 +11,8 @@ library(caret)
 library(parallel)
 library(foreach)
 library(tidyverse)
+library(ggfortify)
+library(cluster)
 
 knitr::opts_chunk$set(
   fig.height = 6,
@@ -36,10 +38,25 @@ set.seed(123123)
 ```
 
 ```{r load_data, echo=F}
-sngcll = 
-  read_csv("ss.csv") %>% 
+sngcll_raw = 
+  read_csv("ss.csv") 
+sngcll = sngcll_raw %>% 
   janitor::clean_names() %>% 
-  select(-x560,-cell_name)
+  dplyr::select(-x560, -cell_name) %>% 
+  mutate(cluster = factor(cluster))
+```
+
+```{r}
+pc = prcomp(sngcll[-558], scale = T, center = T)
+eigs = pc$sdev^2
+summary.table = rbind(
+  SD = sqrt(eigs),
+  Proportion = eigs/sum(eigs),
+  Cumulative = cumsum(eigs)/sum(eigs))
+summary.table[,1:10] %>% 
+  knitr::kable()
+scores = pc$x
+autoplot(pc, data = sngcll, colour = "cluster")
 ```
 
 
