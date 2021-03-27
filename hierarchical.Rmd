@@ -1,0 +1,21 @@
+---
+title: "hierarchical"
+author: "Ruwen Zhou"
+date: "3/27/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)  # data manipulation
+library(cluster)    # clustering algorithms
+library(factoextra) # clustering visualization
+library(dendextend) # for comparing two dendrograms
+```
+
+```{r}
+gene <- read_csv("ss.csv")
+gene <- na.omit(gene)
+head(gene)
+```
+
