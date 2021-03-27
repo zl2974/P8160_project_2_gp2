@@ -20,7 +20,7 @@ library(tidyverse)
 gaussian_mixture =
   function(data,
            k = 1,
-           max_iter = 1) {
+           max_iter = 100) {
     
     data = as.matrix(data) %>% scale()
     
