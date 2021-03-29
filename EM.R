@@ -20,7 +20,7 @@ library(tidyverse)
 gaussian_mixture =
   function(data,
            k = 1,
-           max_iter = 1) {
+           max_iter = 100) {
     
     data = as.matrix(data) %>% scale()
     
@@ -44,7 +44,7 @@ gaussian_mixture =
                    p[[k]]*dmvnorm(data[x,],mu[k,],sigma[[k]])
                  }) %>% 
           unlist()
-        
+        #Pr[is.na(Pr)] = -1e+10
         return(sum(log(Pr)))
       }
     
@@ -77,7 +77,6 @@ gaussian_mixture =
     iter = 1
     
     while (abs(obj-obj0)>1e-2 & iter <= max_iter) {
-      print(obj)
       iter = iter + 1
       obj0 = obj
       ## E step
@@ -133,6 +132,7 @@ gaussian_mixture =
       mu = mu,
       sigma = Sigma,
       p = p,
-      cluster = cluster
+      cluster = cluster,
+      df = sum(k+k*ncol(data)+k*ncol(data)*ncol(data))
     ))
   }
