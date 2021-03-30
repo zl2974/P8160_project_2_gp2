@@ -37,6 +37,8 @@ gaussian_mixture =
     
     objective = 
       function(data,cluster,p,mu,sigma){
+        if (length(cluster) != nrow(data)) {
+          return(NA)}
         Pr =
           mclapply(1:nrow(data),
                  FUN = function(x){
@@ -44,7 +46,8 @@ gaussian_mixture =
                    p[[k]]*dmvnorm(data[x,],mu[k,],sigma[[k]])
                  }) %>% 
           unlist()
-        #Pr[is.na(Pr)] = -1e+10
+        
+        Pr[Pr<1e-10] = 1e-10
         return(sum(log(Pr)))
       }
     
@@ -124,11 +127,14 @@ gaussian_mixture =
       cluster = cluster[order(cluster[,1]),2]
       
       obj = objective(data,cluster,p,mu,Sigma)
+      if (is.na(obj)) return(gaussian_mixture(data = data,k =k,
+                                              max_iter = max(max_iter -iter,2)))
         
     }
     
     return(list(
       obj = obj,
+      k = k,
       mu = mu,
       sigma = Sigma,
       p = p,
