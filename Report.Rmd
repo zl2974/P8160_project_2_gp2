@@ -1,0 +1,28 @@
+---
+title: "Report"
+author: "Liucheng Shi, Zhuohui Liang, Ruwen Zhou, Jiying Han"
+date: "3/30/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+## Data Preparation
+
+## PCA
+
+## Apply EM algorithm
+
+## Gene-expression signatures
+
+## Analysing Gaussian-Mixture model with Principal Component
+
+## Result
+
+## Hierarchical clustering
+
+## Conclusion
