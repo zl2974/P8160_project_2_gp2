@@ -46,12 +46,17 @@ rect.hclust(hc5, k = 3, border = 2:5)
 ```{r}
 fviz_cluster(list(data = gene, cluster = sub_grp))
 ```
+
+Determining Optimal Clusters
+* Elbow Method
 ```{r}
 fviz_nbclust(gene, FUN = hcut, method = "wss")
 ```
+* Average Silhouette Method
 ```{r}
 fviz_nbclust(gene, FUN = hcut, method = "silhouette")
 ```
+* Gap Statistic Method
 ```{r}
 gap_stat <- clusGap(gene, FUN = hcut, nstart = 25, K.max = 10, B = 50)
 fviz_gap_stat(gap_stat)
