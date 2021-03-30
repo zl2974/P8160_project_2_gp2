@@ -20,7 +20,7 @@ library(tidyverse)
 gaussian_mixture =
   function(data,
            k = 1,
-           max_iter = 1) {
+           max_iter = 100) {
     
     data = as.matrix(data) %>% scale()
     
@@ -37,6 +37,8 @@ gaussian_mixture =
     
     objective = 
       function(data,cluster,p,mu,sigma){
+        if (length(cluster) != nrow(data)) {
+          return(NA)}
         Pr =
           mclapply(1:nrow(data),
                  FUN = function(x){
@@ -45,6 +47,7 @@ gaussian_mixture =
                  }) %>% 
           unlist()
         
+        Pr[Pr<1e-10] = 1e-10
         return(sum(log(Pr)))
       }
     
@@ -77,7 +80,6 @@ gaussian_mixture =
     iter = 1
     
     while (abs(obj-obj0)>1e-2 & iter <= max_iter) {
-      print(obj)
       iter = iter + 1
       obj0 = obj
       ## E step
@@ -125,14 +127,18 @@ gaussian_mixture =
       cluster = cluster[order(cluster[,1]),2]
       
       obj = objective(data,cluster,p,mu,Sigma)
+      if (is.na(obj)) return(gaussian_mixture(data = data,k =k,
+                                              max_iter = max(max_iter -iter,2)))
         
     }
     
     return(list(
       obj = obj,
+      k = k,
       mu = mu,
       sigma = Sigma,
       p = p,
-      cluster = cluster
+      cluster = cluster,
+      df = sum(k+k*ncol(data)+k*ncol(data)*ncol(data))
     ))
   }
