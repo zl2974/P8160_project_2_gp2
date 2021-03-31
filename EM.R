@@ -20,7 +20,8 @@ library(tidyverse)
 gaussian_mixture =
   function(data,
            k = 1,
-           max_iter = 100) {
+           max_iter = 100,
+           method = "deviance") {
     
     data = as.matrix(data) %>% scale()
     
@@ -36,9 +37,11 @@ gaussian_mixture =
     # set-up
     
     objective = 
-      function(data,cluster,p,mu,sigma){
+      function(data,cluster,p,mu,sigma,method){
         if (length(cluster) != nrow(data)) {
           return(NA)}
+        
+        if (method == "deviance"|method == "AIC"){
         Pr =
           mclapply(1:nrow(data),
                  FUN = function(x){
@@ -48,7 +51,37 @@ gaussian_mixture =
           unlist()
         
         Pr[Pr<1e-10] = 1e-10
-        return(sum(log(Pr)))
+        
+        L = sum(log(Pr))
+        
+        if (method == "AIC") return(-2*(L-Df))
+        return(L)}
+        
+        if(method == "CH"){
+          Ce = colSums(data) %>% as.vector()
+          
+          Wk = mclapply(1:nrow(data), function(x){
+            k = cluster[[x]]
+            d = data[x,]-mu[k,]
+            W = (d)%*%t(d)
+            tr = sum(diag(W))
+            return(tr)
+          },
+          mc.cores = .cores) %>% 
+            do.call(sum,.)
+          
+          Bk = mclapply(1:nrow(data), function(x){
+            k = cluster[[x]]
+            d = mu[k,]-Ce
+            B = d%*%t(d)
+            tr = sum(diag(B))
+            return(tr)
+          },
+          mc.cores = .cores) %>% 
+            do.call(sum,.)
+          
+          return(Bk/Wk*((nrow(data)-k)/(k-1)))
+        }
       }
     
     ## row & col/parameters
@@ -72,7 +105,10 @@ gaussian_mixture =
     
     cluster = rep(1,N)
     
-    obj = objective(data,cluster,p,mu,Sigma)
+    Df = sum(k+k*ncol(data)+k*ncol(data)*ncol(data)+k*nrow(data))
+    
+    obj = objective(data,cluster,p,mu,Sigma,method)
+    
     obj0 = -Inf
     
     # evaluation
@@ -126,7 +162,7 @@ gaussian_mixture =
       cluster = which(Q == apply(Q, 1, max), arr.ind = T)
       cluster = cluster[order(cluster[,1]),2]
       
-      obj = objective(data,cluster,p,mu,Sigma)
+      obj = objective(data,cluster,p,mu,Sigma,method)
       if (is.na(obj)) return(gaussian_mixture(data = data,k =k,
                                               max_iter = max(max_iter -iter,2)))
         
@@ -139,6 +175,6 @@ gaussian_mixture =
       sigma = Sigma,
       p = p,
       cluster = cluster,
-      df = sum(k+k*ncol(data)+k*ncol(data)*ncol(data))
+      df = Df
     ))
   }

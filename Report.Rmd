@@ -1,0 +1,91 @@
+---
+title: "Report"
+author: "Liucheng Shi, Zhuohui Liang, Ruwen Zhou, Jiying Han"
+date: "3/30/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)  
+library(cluster)    
+library(factoextra) 
+library(dendextend) 
+```
+
+## Introduction
+
+## Data Preparation
+
+## PCA
+
+## Apply EM algorithm
+
+## Gene-expression signatures
+
+## Analysing Gaussian-Mixture model with Principal Component
+
+## Result
+
+## Hierarchical clustering
+
+Hierarchical clustering is an alternative approach to k-means clustering for identifying groups in the dataset. In our project, our purpose is to classify scRNA-seq into different clusters based on their gene expressions and identify potential existence of cell subtypes. We choose agglomerative hierarchical clustering method, which is a bottom-up method. Each object is initially considered as a single-element cluster. At each step of the algorithm, the two clusters that are the most similar are combined into a new bigger cluster. The iteration will not stop until all elements are being classified into one single cluster. This makes the result a tree and can be visualized as a dendrogram.
+
+When measuring the dissimilarity between each pair of observations distance, Euclidean distance has been used. However, when measuring the dissimilarity between two clusters of observations, we have applied different methods.
+
+* Minimum or single linkage clustering: It computes all pairwise dissimilarities between the elements in cluster 1 and the elements in cluster 2, and considers the smallest of these dissimilarities as a linkage criterion.
+
+```{r}
+gene <- read_csv("ss.csv")
+gene <- scale(gene)
+head(gene)
+```
+
+```{r}
+# Dissimilarity matrix
+d <- dist(gene, method = "euclidean")
+
+# Hierarchical clustering using single Linkage
+hc1 <- hclust(d, method = "complete" )
+
+# Plot the obtained dendrogram
+plot(hc1, cex = 0.6, hang = -1)
+```
+Ward’s minimum variance method: It minimizes the total within-cluster variance. At each step the pair of clusters with minimum between-cluster distance are merged.
+
+```{r}
+# Ward's method
+hc5 <- hclust(d, method = "ward.D2" )
+
+# Cut tree into 4 groups
+sub_grp <- cutree(hc5, k = 3)
+
+# Number of members in each cluster
+table(sub_grp)
+```
+
+```{r}
+plot(hc5, cex = 0.6)
+rect.hclust(hc5, k = 3, border = 2:5)
+```
+Visualize the result in a scatter plot.
+```{r}
+fviz_cluster(list(data = gene, cluster = sub_grp))
+```
+
+Determining Optimal Clusters
+* Elbow Method
+```{r}
+fviz_nbclust(gene, FUN = hcut, method = "wss")
+```
+* Average Silhouette Method
+```{r}
+fviz_nbclust(gene, FUN = hcut, method = "silhouette")
+```
+* Gap Statistic Method
+```{r}
+gap_stat <- clusGap(gene, FUN = hcut, nstart = 25, K.max = 10, B = 50)
+fviz_gap_stat(gap_stat)
+```
+
+## Conclusion
