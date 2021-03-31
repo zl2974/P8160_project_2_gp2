@@ -80,8 +80,7 @@ sngcll_pca =
           data = sngcll_dp0,
           tol = sqrt(.Machine$double.eps),
           center =F,
-          scale. = F,
-          scale = F)
+          scale. = F)
 
 summary(sngcll_pca)$importance %>% 
   t() %>% 
@@ -91,6 +90,36 @@ summary(sngcll_pca)$importance %>%
 
 sngcll_pca$rotation[,1:4] %>% t()%>% knitr::kable()
 ```
+
+```{r}
+pca_summary = summary(sngcll_pca)
+getpcfeatures = function(i) {
+  df = pca_summary$rotation %>% 
+    as.data.frame() %>%  mutate(feature = row.names(.)) %>% 
+    select(i, feature)
+  df = df[abs(df[,1]) >= 0.1,]
+  df %>% 
+    ggplot(aes(df[,1], reorder(df[,2], df[,1]))) +
+    geom_point() +
+    xlab(paste("PC",i,sep = "")) +
+    ylab("Strong influence")}
+pc1 = getpcfeatures(1); pc2 = getpcfeatures(2); pc3 = getpcfeatures(3);
+pc4 = getpcfeatures(4); pc5 = getpcfeatures(5); pc6 = getpcfeatures(6)
+gridExtra::grid.arrange(pc1,pc2,pc3,pc4,pc5,pc6, nrow = 3)
+
+#eigen = sngcll_pca$sdev^2
+#which(eigen >= 1)
+
+tibble(PVE = unname(pca_summary$importance[2,]), PC = colnames(pca_summary$importance)) %>% 
+  filter(PVE >= 0.05) %>% 
+  ggplot(aes(PC, PVE, group = 1, label = PC)) + 
+  geom_point() + geom_line() +
+  geom_text(nudge_y = -.002) +
+  xlab("Principal Components") +
+  ylab("Proportion of Variance Explained")
+##Use dropped genes, we select two PCs if scaled, three PCs if not scaled
+```
+
 
 ## Apply EM algorithm
 
