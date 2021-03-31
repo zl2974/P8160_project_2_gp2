@@ -136,6 +136,7 @@ N(\boldsymbol \mu_k, \Sigma_k), \mbox{with probability }p_k\\
 $$L(\theta; \mathbf x,\mathbf r) = \prod_{i=1}^n \prod_{j=1}^k [p_j f(\mathbf x_i; \boldsymbol \mu_j, \Sigma_j)] ^{r_{i,j}}$$
 
   The EM algorithm is designed as:
+  
 \begin{tabular}{c c c}
 & &describe\\
 \hline\\
@@ -146,7 +147,7 @@ $$L(\theta; \mathbf x,\mathbf r) = \prod_{i=1}^n \prod_{j=1}^k [p_j f(\mathbf x_
 &end&
 \end{tabular}
 
-  After optimizing, calculate observed Likelihood L as well as the AIC loss function($-2(log(L)-n_p)$). where $n_p=K+GK+G^2K+KN$. As rule of thumb, initial cluster's number is set as 2 to 10\cite{system_review}, and final cluster number is determined by model with lowest AIC.
+  After optimizing, calculate observed Likelihood L. EM algorithm is optimized by the observed likelihood, but understanding that  assigning each cell to its own cluster would have the model with highest likelihood, but as thus lead to overfilling problem. With above concerns, the AIC loss function($-2(log(L)-n_p)$) is used instead of deviance, where $n_p=K+GK+G^2K+KN$. As rule of thumb, initial cluster's number is set as 2 to 10\cite{system_review}, and final cluster number is determined by model with lowest AIC.
   
 # Result
 
@@ -171,6 +172,10 @@ pc4 = ggplot(sngcll_clu_3,aes(PC1,PC4,color = cluster))+geom_jitter(alpha = 0.8)
 
 pc2 + pc3+pc4 +plot_spacer()+ plot_layout(nrow = 2,ncol = 2, guides = "collect")
 ```
+
+
+
+  Clustering cell with EM algorithm has sevaral drawbacks. The first of all shared problem with EM algorithm is slow computational time, \cite{very_fast} has compared EM based method with hierarchical methods, and EM method is slower than. The second problem is that EM algorithm's convergence and convergent time are rely on the initialization, a well separated center for initialization provide fast convergence, on the other hand, bad initialization lead to divergence. But the initialization is randomly assigned uniformly,  as a result, convergence is not always guaranteed. The third problem is that gaussian model may not fit RNA sequence expression. \cite{ZIFA} has pointed out that drop-out event leads to zero-inflated data, and gaussian mixture cannot address this problem. Also, \cite{poisson} provide poisson-mixture as a alternative for gaussian mixture.
 
 ## Hierarchical clustering
 
