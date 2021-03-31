@@ -42,7 +42,7 @@ set.seed(123123)
 ```
 
 # Introduction
-
+The recent breakthrough in NGS allows us to sequence thousands of RNA simultaneously at individual cell level, which leads to possible insight in heterogeneity in gene expression by dividing cells into subgroups based on their depth of coverage. The objective of this project is to identify the hidden structure in 558 genes using the 716 scRNA sequencing data from breast cancer tumor. We would use clustering method based on GMM model with EM algorithm, in comparison to other methods including hierarchical clustering method.
 
 # Method
 
