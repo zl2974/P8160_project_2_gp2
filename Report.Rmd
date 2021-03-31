@@ -7,25 +7,170 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-library(tidyverse)  
-library(cluster)    
+library(MASS)
+library(caret)
+library(parallel)
+library(foreach)
+library(ggfortify)
+library(patchwork)
+library(cluster)
 library(factoextra) 
 library(dendextend) 
+library(tidyverse)
+
+knitr::opts_chunk$set(
+  fig.height = 6,
+  fig.width = 8,
+  message = F,
+  echo = F,
+  warning = F,
+  cache = F
+)
+
+theme_set(theme_minimal() + theme(legend.position = "bottom", 
+                                  title = element_text(hjust = 0.5)))
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis",
+  digits = 3
+)
+
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+
+set.seed(123123)
 ```
 
-## Introduction
+# Introduction
+
+
+# Method
 
 ## Data Preparation
 
+```{r load_data, echo=F}
+sngcll_raw = 
+  read_csv("ss.csv") 
+
+sngcll = sngcll_raw %>% 
+  janitor::clean_names()
+```
+
+```{r standardize_data}
+# drop gene that 90% is zero 
+drop_gene = 
+  sngcll %>% 
+  summarise(across(everything(),~sum(.x==0)/n()<0.9)) %>% 
+  slice(1) %>% 
+  unlist() %>% 
+  as.vector()
+
+sngcll_dp0 = 
+  sngcll[,drop_gene]
+```
+
+
 ## PCA
 
+```{r pca}
+# PCA with scale
+sngcll_pca =
+  #predict(preProcess(sngcll_dp0,c("center","scale","pca")),sngcll_dp0)
+  prcomp( ~ .,
+          data = sngcll_dp0,
+          tol = sqrt(.Machine$double.eps),
+          center =F,
+          scale. = F,
+          scale = F)
+
+summary(sngcll_pca)$importance %>% 
+  t() %>% 
+  .[seq(1,230,8),] %>% 
+  as_tibble(rownames = NA) %>% 
+  knitr::kable(digits = 2)
+
+sngcll_pca$rotation[,1:4] %>% t()%>% knitr::kable()
+```
+
 ## Apply EM algorithm
+
+```{r EM_data}
+# EM data preparation
+sngcll_pca =
+  predict(preProcess(
+    sngcll_dp0,
+    c("pca","center","scale"),
+    pcaComp = sum(summary(sngcll_pca)$importance[3, ]<.9)
+  ), sngcll_dp0)
+```
+
+```{r eval = F}
+source("EM.R")
+
+set.seed(123123)
+rslt_2 = rerun(1,lapply(10:2, FUN = function(x) gaussian_mixture(sngcll_pca,x,method ="AIC")) %>% do.call(rbind,.)) %>% do.call(rbind,.)
+save(rslt_2,file = "EM.Rdata")
+
+set.seed(123123)
+t1 = Sys.time()
+rslt = rerun(20,lapply(10:2, FUN = function(x) gaussian_mixture(sngcll_pca,x,method ="AIC")) %>% do.call(rbind,.)) %>% do.call(rbind,.)
+save(rslt,file = "EM_20.Rdata")
+t_run = Sys.time() - t1
+```
+
+
+
+  The model is assumed to have gaussian conditional distribution in each cluster, with parameters $\mu_k$ and $\Sigma_k$ for k in 1,2,3...K. Each observation have probability $p_{ik}$ to be any of the K's clusters, observation is assigned to the cluster with the highest probability. The model is presented as followed:
+  
+$$\mathbf x_i\sim
+\begin{cases}
+N(\boldsymbol \mu_1, \Sigma_1), \mbox{with probability }p_1 \\
+N(\boldsymbol \mu_2, \Sigma_2), \mbox{with probability }p_2\\
+\quad\quad\vdots\quad\quad,\quad\quad \vdots\\
+N(\boldsymbol \mu_k, \Sigma_k), \mbox{with probability }p_k\\
+\end{cases}$$
+
+
+  Where i $\in$ 1,2,3...N, the completed likelihood function is:
+
+$$L(\theta; \mathbf x,\mathbf r) = \prod_{i=1}^n \prod_{j=1}^k [p_j f(\mathbf x_i; \boldsymbol \mu_j, \Sigma_j)] ^{r_{i,j}}$$
+
+  The EM algorithm is designed as:
+\begin{tabular}{c c c}
+& &describe\\
+\hline\\
+1& &initialize model with random $p_j,\mu_j,\Sigma_j$ given k\\
+2& while& iteration is less than maximum iteration or objective function not converge\\
+&\vline& E step: calculate the conditional probability $p(r_j|X,\mu,\Sigma)$\\
+&\vline& M step: calculate and update $\mu,\Sigma,p$ and assign clusters\\
+&end&
+\end{tabular}
+
+  After optimizing, calculate observed Likelihood L as well as the AIC loss function($-2(log(L)-n_p)$). where $n_p=K+GK+G^2K+KN$. As rule of thumb, initial cluster's number is set as 2 to 10\cite{system_review}, and final cluster number is determined by model with lowest AIC.
+  
+# Result
 
 ## Gene-expression signatures
 
 ## Analysing Gaussian-Mixture model with Principal Component
 
-## Result
+```{r plot}
+load("EM.Rdata")
+
+ggplot(as_tibble(rslt_2) %>% unnest(c(k, obj)), aes(k, obj)) +
+  geom_path()+
+  labs(y = "AIC")
+
+sngcll_clu_3 = cbind(sngcll_pca,rslt_2[which(rslt_2[,"k"]==3),"cluster"])
+
+pc2 = ggplot(sngcll_clu_3,aes(PC1,PC2,color = cluster))+geom_jitter(alpha = 0.8)
+
+pc3 = ggplot(sngcll_clu_3,aes(PC1,PC3,color = cluster))+geom_jitter(alpha = 0.8)
+
+pc4 = ggplot(sngcll_clu_3,aes(PC1,PC4,color = cluster))+geom_jitter(alpha = 0.8)
+
+pc2 + pc3+pc4 +plot_spacer()+ plot_layout(nrow = 2,ncol = 2, guides = "collect")
+```
 
 ## Hierarchical clustering
 
