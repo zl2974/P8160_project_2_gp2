@@ -267,4 +267,7 @@ gap_stat <- clusGap(gene, FUN = hcut, nstart = 25, K.max = 10, B = 50)
 fviz_gap_stat(gap_stat)
 ```
 
+After applying different clusters, we found that when we choose cluster = 4, there will be a cluster only have one item. When we only have 3 clusetrs, each cluster has 548, 140, 28 items.
+
+
 ## Conclusion
