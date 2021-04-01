@@ -43,7 +43,7 @@ set.seed(123123)
 ```
 
 # Introduction
-
+The recent breakthrough in NGS allows us to sequence thousands of RNA simultaneously at individual cell level, which leads to possible insight in heterogeneity in gene expression by dividing cells into subgroups based on their depth of coverage. The objective of this project is to identify the hidden structure in 558 genes using the 716 scRNA sequencing data from breast cancer tumor. We would use clustering method based on GMM model with EM algorithm, in comparison to other methods including hierarchical clustering method.
 
 # Method
 
@@ -81,8 +81,7 @@ sngcll_pca =
           data = sngcll_dp0,
           tol = sqrt(.Machine$double.eps),
           center =F,
-          scale. = F,
-          scale = F)
+          scale. = F)
 
 summary(sngcll_pca)$importance %>% 
   t() %>% 
@@ -92,6 +91,36 @@ summary(sngcll_pca)$importance %>%
 
 sngcll_pca$rotation[,1:4] %>% t()%>% knitr::kable()
 ```
+
+```{r}
+pca_summary = summary(sngcll_pca)
+getpcfeatures = function(i) {
+  df = pca_summary$rotation %>% 
+    as.data.frame() %>%  mutate(feature = row.names(.)) %>% 
+    select(i, feature)
+  df = df[abs(df[,1]) >= 0.1,]
+  df %>% 
+    ggplot(aes(df[,1], reorder(df[,2], df[,1]))) +
+    geom_point() +
+    xlab(paste("PC",i,sep = "")) +
+    ylab("Strong influence")}
+pc1 = getpcfeatures(1); pc2 = getpcfeatures(2); pc3 = getpcfeatures(3);
+pc4 = getpcfeatures(4); pc5 = getpcfeatures(5); pc6 = getpcfeatures(6)
+gridExtra::grid.arrange(pc1,pc2,pc3,pc4,pc5,pc6, nrow = 3)
+
+#eigen = sngcll_pca$sdev^2
+#which(eigen >= 1)
+
+tibble(PVE = unname(pca_summary$importance[2,]), PC = colnames(pca_summary$importance)) %>% 
+  filter(PVE >= 0.05) %>% 
+  ggplot(aes(PC, PVE, group = 1, label = PC)) + 
+  geom_point() + geom_line() +
+  geom_text(nudge_y = -.002) +
+  xlab("Principal Components") +
+  ylab("Proportion of Variance Explained")
+##Use dropped genes, we select two PCs if scaled, three PCs if not scaled
+```
+
 
 ## Apply EM algorithm
 
@@ -228,7 +257,7 @@ When measuring the dissimilarity between each pair of observations distance, Euc
 
 * Minimum or single linkage clustering: It computes all pairwise dissimilarities between the elements in cluster 1 and the elements in cluster 2, and considers the smallest of these dissimilarities as a linkage criterion.
 
-```{r}
+```{r, include=F}
 gene <- read_csv("ss.csv")
 gene <- scale(gene)
 ```
@@ -266,10 +295,7 @@ fviz_cluster(list(data = gene, cluster = sub_grp))
 ```
 
 Determining Optimal Clusters
-* Elbow Method
-```{r}
-fviz_nbclust(gene, FUN = hcut, method = "wss")
-```
+
 * Average Silhouette Method
 ```{r}
 fviz_nbclust(gene, FUN = hcut, method = "silhouette")
@@ -279,5 +305,8 @@ fviz_nbclust(gene, FUN = hcut, method = "silhouette")
 gap_stat <- clusGap(gene, FUN = hcut, nstart = 25, K.max = 10, B = 50)
 fviz_gap_stat(gap_stat)
 ```
+
+In order to determine the optimal number of clusters, we applied Average Silhouette Method and Gap Statistic Method. Silhouette Method indicates that two-clusters-model fits our data best, while Gap Statistic Method shows that three-clusters is more suitable. After applying different clusters, we found that when we choose cluster = 3, each cluster has 548, 140, 28 items. When cluster = 2, each cluster has 548, 168 items. 
+
 
 ## Conclusion
