@@ -214,10 +214,9 @@ When measuring the dissimilarity between each pair of observations distance, Euc
 
 * Minimum or single linkage clustering: It computes all pairwise dissimilarities between the elements in cluster 1 and the elements in cluster 2, and considers the smallest of these dissimilarities as a linkage criterion.
 
-```{r}
+```{r, include=F}
 gene <- read_csv("ss.csv")
 gene <- scale(gene)
-head(gene)
 ```
 
 ```{r}
@@ -253,10 +252,7 @@ fviz_cluster(list(data = gene, cluster = sub_grp))
 ```
 
 Determining Optimal Clusters
-* Elbow Method
-```{r}
-fviz_nbclust(gene, FUN = hcut, method = "wss")
-```
+
 * Average Silhouette Method
 ```{r}
 fviz_nbclust(gene, FUN = hcut, method = "silhouette")
@@ -267,7 +263,7 @@ gap_stat <- clusGap(gene, FUN = hcut, nstart = 25, K.max = 10, B = 50)
 fviz_gap_stat(gap_stat)
 ```
 
-After applying different clusters, we found that when we choose cluster = 4, there will be a cluster only have one item. When we only have 3 clusetrs, each cluster has 548, 140, 28 items.
+In order to determine the optimal number of clusters, we applied Average Silhouette Method and Gap Statistic Method. Silhouette Method indicates that two-clusters-model fits our data best, while Gap Statistic Method shows that three-clusters is more suitable. After applying different clusters, we found that when we choose cluster = 3, each cluster has 548, 140, 28 items. When cluster = 2, each cluster has 548, 168 items. 
 
 
 ## Conclusion
