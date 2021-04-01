@@ -230,9 +230,21 @@ apply(sngcll_sign,2,FUN = function(x) gene[which(x !=0)]) %>%
 ```{r plot}
 load("EM.Rdata")
 
-ggplot(as_tibble(rslt_2) %>% unnest(c(k, obj)), aes(k, obj)) +
-  geom_path()+
-  labs(y = "AIC")
+load("EM_20.Rdata")
+
+ggplot(
+  rslt %>%
+    as_tibble() %>%
+    unnest(c(k, obj)) %>%
+    filter(obj > 0) %>%
+    group_by(k) %>%
+    summarise(aic = mean(obj), sd = sd(obj)),
+  aes(k, aic)
+) +
+  geom_point() +
+  geom_errorbar(aes(ymin = aic - sd, ymax = aic + sd), width = .3,color = "red" ) +
+  labs(y = "AIC",
+       title = "EM clustering (20 runs)")
 
 sngcll_clu_3 = cbind(sngcll_pca,rslt_2[which(rslt_2[,"k"]==3),"cluster"])
 
