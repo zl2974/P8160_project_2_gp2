@@ -11,6 +11,7 @@ library(MASS)
 library(caret)
 library(parallel)
 library(foreach)
+library(doParallel)
 library(ggfortify)
 library(patchwork)
 library(cluster)
@@ -153,6 +154,48 @@ $$L(\theta; \mathbf x,\mathbf r) = \prod_{i=1}^n \prod_{j=1}^k [p_j f(\mathbf x_
 
 ## Gene-expression signatures
 
+```{r}
+load("EM.Rdata")
+
+X_tr = model.matrix(cluster~.,
+                    cbind(sngcll_dp0,rslt_2[which(rslt_2[,"k"]==3),"cluster"]))[,-1]
+
+Y_tr= rslt_2[which(rslt_2[,"k"]==3),"cluster"] %>% 
+  unlist() %>% 
+  as.factor()
+
+set.seed(123123)
+
+sngcll_sign = glmnet::cv.glmnet(
+  X_tr,
+  Y_tr,
+  alpha = 1,
+  type.measure = "auc",
+  family = "multinomial",
+  type.family = "ungrouped",
+  grouped = F
+)
+
+sngcll_sign = 
+  coef(sngcll_sign,s = "lambda.1se") %>% 
+  do.call(cbind,.) %>% 
+  as.matrix() %>% 
+  .[-1,]
+
+gene = colnames(sngcll_dp0)
+
+apply(sngcll_sign,2,FUN = function(x) gene[which(x !=0)]) %>% 
+  lapply(.,FUN = function(x) str_c(x,collapse = ", ")) %>% 
+  do.call(rbind,.) %>% 
+  as_tibble() %>% 
+  cbind(cluster = c(1,2,3),.) %>% 
+  knitr::kable(caption = "Cluster's signature",
+               col.names = c("cluster","signature"),
+               align = "c")
+```
+
+
+
 ## Analysing Gaussian-Mixture model with Principal Component
 
 ```{r plot}
@@ -188,7 +231,6 @@ When measuring the dissimilarity between each pair of observations distance, Euc
 ```{r}
 gene <- read_csv("ss.csv")
 gene <- scale(gene)
-head(gene)
 ```
 
 ```{r}
