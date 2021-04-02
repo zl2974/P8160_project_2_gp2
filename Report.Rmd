@@ -181,6 +181,40 @@ $$L(\theta; \mathbf x,\mathbf r) = \prod_{i=1}^n \prod_{j=1}^k [p_j f(\mathbf x_
   
 # Result
 
+
+```{r plot}
+load("EM.Rdata")
+
+load("EM_20.Rdata")
+
+ggplot(
+  rslt %>%
+    as_tibble() %>%
+    unnest(c(k, obj)) %>%
+    filter(obj > 0) %>%
+    group_by(k) %>%
+    summarise(aic = mean(obj), sd = sd(obj)),
+  aes(k, aic)
+) +
+  geom_point() +
+  geom_errorbar(aes(ymin = aic - sd, ymax = aic + sd), width = .3,color = "red" ) +
+  scale_x_continuous(limits = c(1.6,10.4),n.breaks = 9)+
+  labs(y = "AIC",
+       title = "EM clustering (20 runs)")
+
+sngcll_clu_3 = cbind(sngcll_pca,rslt_2[which(rslt_2[,"k"]==3),"cluster"])
+
+pc2 = ggplot(sngcll_clu_3,aes(PC1,PC2,color = cluster))+geom_jitter(alpha = 0.8)
+
+pc3 = ggplot(sngcll_clu_3,aes(PC1,PC3,color = cluster))+geom_jitter(alpha = 0.8)
+
+pc4 = ggplot(sngcll_clu_3,aes(PC1,PC4,color = cluster))+geom_jitter(alpha = 0.8)
+
+pc2 + pc3+pc4 +plot_spacer()+ plot_layout(nrow = 2,ncol = 2, guides = "collect")
+```
+
+  The number of cluster is selected based on 20 runs of EM algorithm, and it shows that clustering with 3 clusters has the lowest average AIC. With each cell assigned to cluster, PC complonent plot displays a well separated cluster pattern.
+
 ## Gene-expression signatures
 
 ```{r}
@@ -214,50 +248,23 @@ sngcll_sign =
 gene = colnames(sngcll_dp0)
 
 apply(sngcll_sign,2,FUN = function(x) gene[which(x !=0)]) %>% 
-  lapply(.,FUN = function(x) str_c(x,collapse = ", ")) %>% 
+  lapply(.,FUN = function(x) str_c(x,collapse = "|| ")) %>% 
   do.call(rbind,.) %>% 
   as_tibble() %>% 
   cbind(cluster = c(1,2,3),.) %>% 
   knitr::kable(caption = "Cluster's signature",
                col.names = c("cluster","signature"),
                align = "c")
+
+ugene = apply(sngcll_sign,2,FUN = function(x) gene[which(x !=0)])
 ```
 
+  Result from previously session is used as response variable and conduct classification. Lasso Multinomial model is selected for easy interpretation and variable selection. After model training, the first cluster has 27 gene signatures and the second cluster has 26 signatures, the third cluster has 33 gene signatures. A total of `r apply(sngcll_sign,2,FUN = function(x) gene[which(x !=0)]) %>% unlist %>% unique %>% length` unique gene is used as signature to distinguish groups.
+  
+  The first and second has `r ugene[[1]][ugene[[1]] %in% ugene[[2]]]` as common gene, and `r ugene[[1]][ugene[[1]] %in% ugene[[3]]] %>% str_c(collapse = ", ")` with the third cluster. `r ugene[[2]][ugene[[2]] %in% ugene[[3]]]%>% str_c(collapse = ", ")` are shared between second and the third cluster.
 
 
 ## Analysing Gaussian-Mixture model with Principal Component
-
-```{r plot}
-load("EM.Rdata")
-
-load("EM_20.Rdata")
-
-ggplot(
-  rslt %>%
-    as_tibble() %>%
-    unnest(c(k, obj)) %>%
-    filter(obj > 0) %>%
-    group_by(k) %>%
-    summarise(aic = mean(obj), sd = sd(obj)),
-  aes(k, aic)
-) +
-  geom_point() +
-  geom_errorbar(aes(ymin = aic - sd, ymax = aic + sd), width = .3,color = "red" ) +
-  labs(y = "AIC",
-       title = "EM clustering (20 runs)")
-
-sngcll_clu_3 = cbind(sngcll_pca,rslt_2[which(rslt_2[,"k"]==3),"cluster"])
-
-pc2 = ggplot(sngcll_clu_3,aes(PC1,PC2,color = cluster))+geom_jitter(alpha = 0.8)
-
-pc3 = ggplot(sngcll_clu_3,aes(PC1,PC3,color = cluster))+geom_jitter(alpha = 0.8)
-
-pc4 = ggplot(sngcll_clu_3,aes(PC1,PC4,color = cluster))+geom_jitter(alpha = 0.8)
-
-pc2 + pc3+pc4 +plot_spacer()+ plot_layout(nrow = 2,ncol = 2, guides = "collect")
-```
-
-
 
   Clustering cell with EM algorithm has sevaral drawbacks. The first of all shared problem with EM algorithm is slow computational time, \cite{very_fast} has compared EM based method with hierarchical methods, and EM method is slower than. The second problem is that EM algorithm's convergence and convergent time are rely on the initialization, a well separated center for initialization provide fast convergence, on the other hand, bad initialization lead to divergence. But the initialization is randomly assigned uniformly,  as a result, convergence is not always guaranteed. The third problem is that gaussian model may not fit RNA sequence expression. \cite{ZIFA} has pointed out that drop-out event leads to zero-inflated data, and gaussian mixture cannot address this problem. Also, \cite{poisson} provide poisson-mixture as a alternative for gaussian mixture.
 
