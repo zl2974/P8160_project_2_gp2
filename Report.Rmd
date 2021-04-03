@@ -266,7 +266,7 @@ ugene = apply(sngcll_sign,2,FUN = function(x) gene[which(x !=0)])
 
 ## Analysing Gaussian-Mixture model with Principal Component
 
-  Clustering cell with EM algorithm has sevaral drawbacks. The first of all shared problem with EM algorithm is slow computational time, \cite{very_fast} has compared EM based method with hierarchical methods, and EM method is slower than. The second problem is that EM algorithm's convergence and convergent time are rely on the initialization, a well separated center for initialization provide fast convergence, on the other hand, bad initialization lead to divergence. But the initialization is randomly assigned uniformly,  as a result, convergence is not always guaranteed. The third problem is that gaussian model may not fit RNA sequence expression. \cite{ZIFA} has pointed out that drop-out event leads to zero-inflated data, and gaussian mixture cannot address this problem. Also, \cite{poisson} provide poisson-mixture as a alternative for gaussian mixture.
+  Clustering cell with EM algorithm has several drawbacks. The first of all shared problem with EM algorithm is slow computational time, \cite{very_fast} has compared EM based method with hierarchical methods, and EM method is slower than. The second problem is that EM algorithm's convergence and convergent time are rely on the initialization, a well separated center for initialization provide fast convergence, on the other hand, bad initialization lead to divergence. But the initialization is randomly assigned uniformly,  as a result, convergence is not always guaranteed. The third problem is that gaussian model may not fit RNA sequence expression. \cite{ZIFA} has pointed out that drop-out event leads to zero-inflated data, and gaussian mixture cannot address this problem. Also, \cite{poisson} provide poisson-mixture as a alternative for gaussian mixture.
 
 ## Hierarchical clustering
 
@@ -329,3 +329,5 @@ In order to determine the optimal number of clusters, we applied Average Silhoue
 
 
 ## Conclusion
+
+
