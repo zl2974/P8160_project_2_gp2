@@ -297,8 +297,8 @@ Ward’s minimum variance method: It minimizes the total within-cluster variance
 # Ward's method
 hc5 <- hclust(d, method = "ward.D2" )
 
-# Cut tree into 4 groups
-sub_grp <- cutree(hc5, k = 3)
+# Cut tree into 2 groups
+sub_grp <- cutree(hc5, k = 2)
 
 # Number of members in each cluster
 table(sub_grp)
@@ -306,7 +306,7 @@ table(sub_grp)
 
 ```{r}
 plot(hc5, cex = 0.6)
-rect.hclust(hc5, k = 3, border = 2:5)
+rect.hclust(hc5, k = 2, border = 2:5)
 ```
 Visualize the result in a scatter plot.
 ```{r}
@@ -329,5 +329,29 @@ In order to determine the optimal number of clusters, we applied Average Silhoue
 
 
 ## Conclusion
+```{r}
+library(tictoc)
+
+tic("hierarchical clustering")
+hc5 <- hclust(d, method = "ward.D2" )
+sub_grp <- cutree(hc5, k = 3)
+toc()
+
+tic("EM clustering")
+hc5 <- hclust(d, method = "ward.D2" )
+sub_grp <- cutree(hc5, k = 3)
+toc()
+
+```
+
+
+```{r}
+plot(silhouette(cutree(hc5, k = 2), dist(gene, method = "euclidean")))
+```
+
+
+
+
+
 
 
