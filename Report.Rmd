@@ -18,6 +18,7 @@ library(cluster)
 library(factoextra) 
 library(dendextend) 
 library(tidyverse)
+library(dbscan)
 
 knitr::opts_chunk$set(
   fig.height = 6,
@@ -80,8 +81,8 @@ sngcll_pca =
   prcomp( ~ .,
           data = sngcll_dp0,
           tol = sqrt(.Machine$double.eps),
-          center =F,
-          scale. = F)
+          center = T,
+          scale. = T)
 
 summary(sngcll_pca)$importance %>% 
   t() %>% 
@@ -110,17 +111,22 @@ gridExtra::grid.arrange(pc1,pc2,pc3,pc4,pc5,pc6, nrow = 3)
 
 #eigen = sngcll_pca$sdev^2
 #which(eigen >= 1)
+fviz_pca_var(sngcll_pca, col.var = "black", repel = TRUE)
+autoplot(sngcll_pca,loadings = TRUE)
 
-tibble(PVE = unname(pca_summary$importance[2,]), PC = colnames(pca_summary$importance)) %>% 
-  filter(PVE >= 0.05) %>% 
+tibble(PVE = unname(pca_summary$importance[2,]), PC = seq_along(pca_summary$importance)[1:229]) %>% 
+  filter(PVE >= 0.01) %>% 
   ggplot(aes(PC, PVE, group = 1, label = PC)) + 
-  geom_point() + geom_line() +
+  geom_bar(stat = "identity", color = "lightgray", fill = "grey") + geom_point() + geom_line() +
   geom_text(nudge_y = -.002) +
   xlab("Principal Components") +
   ylab("Proportion of Variance Explained")
-##Use dropped genes, we select two PCs if scaled, three PCs if not scaled
+#fviz_eig(sngcll_pca, addlabels = TRUE)
 ```
 
+Since all depths of coverage and other statistics for gene expression is measured in the same scale, one might have such the intuitive thought that we should not center and scale the single cell expression data. Although both scaled and unscaled methods are implemented in literature, scaling the data would provide us with more details on genome subtypes. Considering gene A required expression level 1000 to be activated and gene B required expression 100, two genes are not comparable and gene A would contribute more to the PCs for bigger variance. Based on the plot, we can see the variance is significantly lower by centering and scaling the expression to 0-1.
+
+The genes contributed the most in the first six PCs are shown below.
 
 ## Apply EM algorithm
 
@@ -129,8 +135,8 @@ tibble(PVE = unname(pca_summary$importance[2,]), PC = colnames(pca_summary$impor
 sngcll_pca =
   predict(preProcess(
     sngcll_dp0,
-    c("pca","center","scale"),
-    pcaComp = sum(summary(sngcll_pca)$importance[3, ]<.9)
+    c("center","scale","pca","center","scale"),
+    pcaComp = 3
   ), sngcll_dp0)
 ```
 
@@ -208,7 +214,7 @@ pc2 = ggplot(sngcll_clu_3,aes(PC1,PC2,color = cluster))+geom_jitter(alpha = 0.8)
 
 pc3 = ggplot(sngcll_clu_3,aes(PC1,PC3,color = cluster))+geom_jitter(alpha = 0.8)
 
-pc4 = ggplot(sngcll_clu_3,aes(PC1,PC4,color = cluster))+geom_jitter(alpha = 0.8)
+pc4 = ggplot(sngcll_clu_3,aes(PC2,PC3,color = cluster))+geom_jitter(alpha = 0.8)
 
 pc2 + pc3+pc4 +plot_spacer()+ plot_layout(nrow = 2,ncol = 2, guides = "collect")
 ```
@@ -352,7 +358,7 @@ ugene = apply(sngcll_sign,2,FUN = function(x) gene[which(x !=0)])
 
 ## Analysing Gaussian-Mixture model with Principal Component
 
-  Clustering cell with EM algorithm has sevaral drawbacks. The first of all shared problem with EM algorithm is slow computational time, \cite{very_fast} has compared EM based method with hierarchical methods, and EM method is slower than. The second problem is that EM algorithm's convergence and convergent time are rely on the initialization, a well separated center for initialization provide fast convergence, on the other hand, bad initialization lead to divergence. But the initialization is randomly assigned uniformly,  as a result, convergence is not always guaranteed. The third problem is that gaussian model may not fit RNA sequence expression. \cite{ZIFA} has pointed out that drop-out event leads to zero-inflated data, and gaussian mixture cannot address this problem. Also, \cite{poisson} provide poisson-mixture as a alternative for gaussian mixture.
+  Clustering cell with EM algorithm has several drawbacks. The first of all shared problem with EM algorithm is slow computational time, \cite{very_fast} has compared EM based method with hierarchical methods, and EM method is slower than. The second problem is that EM algorithm's convergence and convergent time are rely on the initialization, a well separated center for initialization provide fast convergence, on the other hand, bad initialization lead to divergence. But the initialization is randomly assigned uniformly,  as a result, convergence is not always guaranteed. The third problem is that gaussian model may not fit RNA sequence expression. \cite{ZIFA} has pointed out that drop-out event leads to zero-inflated data, and gaussian mixture cannot address this problem. Also, \cite{poisson} provide poisson-mixture as a alternative for gaussian mixture.
 
 ## Hierarchical clustering
 
@@ -413,5 +419,18 @@ fviz_gap_stat(gap_stat)
 
 In order to determine the optimal number of clusters, we applied Average Silhouette Method and Gap Statistic Method. Silhouette Method indicates that two-clusters-model fits our data best, while Gap Statistic Method shows that three-clusters is more suitable. After applying different clusters, we found that when we choose cluster = 3, each cluster has 548, 140, 28 items. When cluster = 2, each cluster has 548, 168 items. 
 
+## Density-based clustering
+
+```{r}
+view(sngcll_pca)
+kNNdistplot(sngcll_pca1, k = 5)
+abline(h = 4)
+db = dbscan(sngcll_pca1, eps = 4, minPts = 5)
+hullplot(sngcll_pca1, db$cluster)
+```
+
+The Density-based clustering method is based on the assumption that points shared similar characteristics would cluster together in a denser format. The method initialize with a core point, and expand the cluster if there are _minPts_ number of neighring points with the radius of _epsilon_.The algorithm would stop when all points are classified as either seeds, borders, or outliers. Two parameters are the minimum number of neighboring points，and the searching radius (epsilon). Using minPts 5, and epsilon 4, we get get 274 noises and 3 cluster containing 546, 5, 8 respectively. Since the PCA is sufficient to preserve distance information, we use PCs to cluster as in part b). Compared with the hierarchical clustering and GMM, density-based clustering perform much worse probably due to the increasing complication in measuring distance for high-dimensional data.
 
 ## Conclusion
+
+
