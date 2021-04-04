@@ -15,6 +15,62 @@ library(tidyverse)
 # Each K cluster
 
 
+objective = 
+  function(data,cluster,p,mu,sigma,method = "AIC"){
+    if (length(cluster) != nrow(data)) {
+      return(NA)}
+    
+    if (method == "deviance"|method == "AIC"){
+      k = sum(unique(cluster))
+      Pr =
+        mclapply(1:nrow(data),
+                 FUN = function(x){
+                   #k = cluster[[x]]
+                   L = lapply(1:k,
+                              function(y) p[[y]]*dmvnorm(data[x,],mu[y,],sigma[[y]]))
+                   L = do.call(sum,L)
+                   return(L)
+                 }) %>% 
+        unlist()
+      
+      Pr[Pr<1e-10] = 1e-10
+      
+      L = sum(log(Pr))
+      
+      if (method == "AIC") {
+        Df = sum(ncol(mu)*(k+1))-1
+        return(-2*(L-Df))}
+      return(L)}
+    
+    if(method == "CH"){
+      k = sum(unique(cluster))
+      Ce = colSums(data) %>% as.vector()
+      
+      Wk = mclapply(1:nrow(data), function(x){
+        k = cluster[[x]]
+        d = data[x,]-mu[k,]
+        W = (d)%*%t(d)
+        tr = sum(diag(W))
+        return(tr)
+      },
+      mc.cores = .cores) %>% 
+        do.call(sum,.)
+      
+      Bk = mclapply(1:nrow(data), function(x){
+        k = cluster[[x]]
+        d = mu[k,]-Ce
+        B = d%*%t(d)
+        tr = sum(diag(B))
+        return(tr)
+      },
+      mc.cores = .cores) %>% 
+        do.call(sum,.)
+      
+      return(Bk/Wk*((nrow(data)-k)/(k-1)))
+    }
+  }
+
+
 # EM function
 
 gaussian_mixture =
@@ -36,54 +92,6 @@ gaussian_mixture =
     
     # set-up
     
-    objective = 
-      function(data,cluster,p,mu,sigma,method){
-        if (length(cluster) != nrow(data)) {
-          return(NA)}
-        
-        if (method == "deviance"|method == "AIC"){
-        Pr =
-          mclapply(1:nrow(data),
-                 FUN = function(x){
-                   k = cluster[[x]]
-                   p[[k]]*dmvnorm(data[x,],mu[k,],sigma[[k]])
-                 }) %>% 
-          unlist()
-        
-        Pr[Pr<1e-10] = 1e-10
-        
-        L = sum(log(Pr))
-        
-        if (method == "AIC") return(-2*(L-Df))
-        return(L)}
-        
-        if(method == "CH"){
-          Ce = colSums(data) %>% as.vector()
-          
-          Wk = mclapply(1:nrow(data), function(x){
-            k = cluster[[x]]
-            d = data[x,]-mu[k,]
-            W = (d)%*%t(d)
-            tr = sum(diag(W))
-            return(tr)
-          },
-          mc.cores = .cores) %>% 
-            do.call(sum,.)
-          
-          Bk = mclapply(1:nrow(data), function(x){
-            k = cluster[[x]]
-            d = mu[k,]-Ce
-            B = d%*%t(d)
-            tr = sum(diag(B))
-            return(tr)
-          },
-          mc.cores = .cores) %>% 
-            do.call(sum,.)
-          
-          return(Bk/Wk*((nrow(data)-k)/(k-1)))
-        }
-      }
-    
     ## row & col/parameters
     
     N = nrow(data)
@@ -97,7 +105,7 @@ gaussian_mixture =
     ## list of mu (with PCA, assuming all mu are important)
     
     #mu = data[sample(1:N, k),] %>% as.matrix()
-    mu = matrix(rnorm(k*C),k,C)
+    mu = kmeans(data,k)$center
     
     ## list of matrix Sigma, which should be diagonal matrix b
     

@@ -188,9 +188,9 @@ $$L(\theta; \mathbf x,\mathbf r) = \prod_{i=1}^n \prod_{j=1}^k [p_j f(\mathbf x_
 
 
 ```{r plot}
-load("EM.Rdata")
+load("EM_PC20.Rdata")
 
-load("EM_20.Rdata")
+load("EM20_PC20.Rdata")
 
 ggplot(
   rslt %>%
@@ -218,11 +218,13 @@ pc4 = ggplot(sngcll_clu_3,aes(PC2,PC3,color = cluster))+geom_jitter(alpha = 0.8)
 pc2 + pc3+pc4 +plot_spacer()+ plot_layout(nrow = 2,ncol = 2, guides = "collect")
 ```
 
-  The number of cluster is selected based on 20 runs of EM algorithm, and it shows that clustering with 3 clusters has the lowest average AIC. With each cell assigned to cluster, PC complonent plot displays a well separated cluster pattern.
+  The number of cluster is selected based on 20 runs of EM algorithm, and it shows that clustering with 3 clusters has the lowest average AIC. With each cell assigned to cluster, PC component plot displays a well separated cluster pattern.
 
 ## Gene-expression signatures
 
-```{r}
+  Two methods of gene signature selection is performed and compared. Recursively Feature Elimination Support Vector Machine(SVM-RFE) is classification method based on support vectors, and in each iteration, the predictors with smallest importance are removed until the specified subset is reached. Based on cross-validation method, the subset with best loss function, in our case-Accuracy, is selected. Another method is used is Wilcoxson test with Berforroni p-value adjustment, each cluster's differential expressions are evaluated based on rank based method. Not significant genes are removed and re-evaluated with smaller subset.
+  
+```{r}  
 load("EM_PC20.Rdata")
 
 X_tr = model.matrix(cluster~.,
@@ -249,9 +251,12 @@ rfec =
                    verbose = FALSE,
              returnResamp = "final")
 
-svm_12 = rfe(
-  X_tr[Y_tr!="cluster_3",],
-  Y_tr[Y_tr!="cluster_3"] %>% as.factor(),
+Y_tr1 = Y_tr
+Y_tr1[Y_tr!="cluster_1"] = "other"
+
+svm_1 = rfe(
+  X_tr,
+  Y_tr1%>% as.factor(),
   sizes = c(5:10,20,50,80,100,125),
   preProcess = c("center"),
   metric = "Accuracy",
@@ -259,9 +264,12 @@ svm_12 = rfe(
   rfeControl= rfec
 )
 
-svm_23 = rfe(
-  X_tr[Y_tr!="cluster_1",],
-  Y_tr[Y_tr!="cluster_1"] %>% as.factor(),
+Y_tr2 = Y_tr
+Y_tr2[Y_tr!="cluster_2"] = "other"
+
+svm_2 = rfe(
+  X_tr,
+  Y_tr2%>% as.factor(),
   sizes = c(5:10,20,50,80,100,125),
   preProcess = c("center"),
   metric = "Accuracy",
@@ -269,9 +277,12 @@ svm_23 = rfe(
   rfeControl= rfec
 )
 
-svm_13 = rfe(
-  X_tr[Y_tr!="cluster_2",],
-  Y_tr[Y_tr!="cluster_2"] %>% as.factor(),
+Y_tr3 = Y_tr
+Y_tr3[Y_tr!="cluster_3"] = "other"
+
+svm_3 = rfe(
+  X_tr,
+  Y_tr3%>% as.factor(),
   sizes = c(5:10,20,50,80,100,125),
   preProcess = c("center"),
   metric = "Accuracy",
@@ -315,43 +326,6 @@ p4 = ggplot(plot_data,aes_string(x = "PC1", y = "PC2", color = top_5[4]))+
 p1+p2 + p3 + p4 + plot_layout(nrow =2)+plot_annotation(title = "Top 4 features pecentile plot")
 ```
 
-
-```{r multimom, eval = F}
-set.seed(123123)
-
-Y_tr= rslt_2[which(rslt_2[,"k"]==3),"cluster"] %>% 
-  unlist() 
-
-sngcll_sign = glmnet::cv.glmnet(
-  X_tr,
-  Y_tr,
-  alpha = 1,
-  type.measure = "auc",
-  family = "multinomial",
-  type.family = "ungrouped",
-  grouped = F
-)
-
-sngcll_sign = 
-  coef(sngcll_sign,s = "lambda.1se") %>% 
-  do.call(cbind,.) %>% 
-  as.matrix() %>% 
-  .[-1,]
-
-gene = colnames(sngcll_dp0)
-
-apply(sngcll_sign,2,FUN = function(x) gene[which(x !=0)]) %>% 
-  lapply(.,FUN = function(x) str_c(x,collapse = "|| ")) %>% 
-  do.call(rbind,.) %>% 
-  as_tibble() %>% 
-  cbind(cluster = c(1,2,3),.) %>% 
-  knitr::kable(caption = "Cluster's signature",
-               col.names = c("cluster","signature"),
-               align = "c")
-
-ugene = apply(sngcll_sign,2,FUN = function(x) gene[which(x !=0)])
-```
-
 ```{r Seurat}
 seurat.data = as.matrix(scale(sngcll_dp0)) %>% t()
 colnames(seurat.data) = str_c("Cell_", seq(1,716))
@@ -362,13 +336,14 @@ Idents(sngcll_seurat) <- unlist(rslt_2[which(rslt_2[,"k"] == 3),"cluster"])
 diff_genes_3 <- FindMarkers(sngcll_seurat, ident.1 = 3, ident.2 = c(1, 2), min.pct = 0.25) #genes differentiate 3 from 1 & 2
 diff_genes_2 <- FindMarkers(sngcll_seurat, ident.1 = 2, ident.2 = c(1, 3), min.pct = 0.25)
 diff_genes_1 <- FindMarkers(sngcll_seurat, ident.1 = 1, ident.2 = c(2, 3), min.pct = 0.25)
+idff_genes = FindAllMarkers(sngcll_seurat,min.pct = 0.25)
 head(diff_genes_3)
 head(diff_genes_2)
 head(diff_genes_1)
 ```
 
 
-  Result from previously session is used as response variable and conduct classification. 
+  Result from gaussian mixture clustering is used as response variable and conduct classification. For cluster 
 
 
 ## Analysing Gaussian-Mixture model with Principal Component
