@@ -432,28 +432,21 @@ hullplot(sngcll_pca1, db$cluster)
 The Density-based clustering method is based on the assumption that points shared similar characteristics would cluster together in a denser format. The method initialize with a core point, and expand the cluster if there are _minPts_ number of neighring points with the radius of _epsilon_.The algorithm would stop when all points are classified as either seeds, borders, or outliers. Two parameters are the minimum number of neighboring points，and the searching radius (epsilon). Using minPts 5, and epsilon 4, we get get 274 noises and 3 cluster containing 546, 5, 8 respectively. Since the PCA is sufficient to preserve distance information, we use PCs to cluster as in part b). Compared with the hierarchical clustering and GMM, density-based clustering perform much worse probably due to the increasing complication in measuring distance for high-dimensional data.
 
 ## Conclusion
-```{r}
-library(tictoc)
-
-tic("hierarchical clustering")
-hc5 <- hclust(d, method = "ward.D2" )
-sub_grp <- cutree(hc5, k = 3)
-toc()
-
-tic("EM clustering")
-hc5 <- hclust(d, method = "ward.D2" )
-sub_grp <- cutree(hc5, k = 3)
-toc()
-
-```
+In order to compare the EM algorithm and Hierarchical clustering method, we apply the silhouette coefficient to evaluate the performance of clustering methods. Since the ground truth labels of clusters are unknown, evaluation must be performed using the model itself. The Silhouette Coefficient s for a single sample is then given as:
+$$s = \frac{b-a}{max(a, b)} $$
+a: The mean distance between a sample and all other points in the same class.
+b: The mean distance between a sample and all other points in the next nearest cluster.
 
 
 ```{r}
 plot(silhouette(cutree(hc5, k = 2), dist(gene, method = "euclidean")))
 ```
 
+```{r}
+plot(silhouette(unlist(rslt_2[which(rslt_2[,"k"]==3),"cluster"]), dist(gene, method = "euclidean")))
+```
 
-
+The silhouette coefficient of EM algorithm is 0.12 and silhouette coefficient of hierarchical clustering is 0.21. A higher Silhouette Coefficient score relates to a model with better defined clusters. Therefore, the performance of hierarchical clustering is better than EM algorithm.
 
 
 
