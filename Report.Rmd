@@ -95,6 +95,8 @@ sngcll_pca$rotation[,1:4] %>% t()%>% knitr::kable()
 
 ```{r}
 pca_summary = summary(sngcll_pca)
+fviz_eig(prcomp(sngcll_dp0), addlabels = TRUE)
+fviz_eig(sngcll_pca, addlabels = TRUE)
 getpcfeatures = function(i) {
   df = pca_summary$rotation %>% 
     as.data.frame() %>%  mutate(feature = row.names(.)) %>% 
@@ -105,6 +107,11 @@ getpcfeatures = function(i) {
     geom_point() +
     xlab(paste("PC",i,sep = "")) +
     ylab("Strong influence")}
+```
+
+Since all depths of coverage and other statistics for gene expression is measured in the same scale, one might have such the intuitive thought that we should not center and scale the single cell expression data. Although both scaled and unscaled methods are implemented in literature, scaling the data would provide us with more details on genome subtypes. Considering gene A required expression level 1000 to be activated and gene B required expression 100, two genes are not comparable and gene A would contribute more to the PCs for bigger variance. Based on the plot, we can see the variance is significantly lower by centering and scaling the expression level.
+
+```{r}
 pc1 = getpcfeatures(1); pc2 = getpcfeatures(2); pc3 = getpcfeatures(3);
 pc4 = getpcfeatures(4); pc5 = getpcfeatures(5); pc6 = getpcfeatures(6)
 gridExtra::grid.arrange(pc1,pc2,pc3,pc4,pc5,pc6, nrow = 3)
@@ -118,14 +125,13 @@ tibble(PVE = unname(pca_summary$importance[2,]), PC = seq_along(pca_summary$impo
   ggplot(aes(PC, PVE, group = 1, label = PC)) + 
   geom_bar(stat = "identity", color = "lightgray", fill = "grey") + geom_point() + geom_line() +
   geom_text(nudge_y = -.002) +
+  geom_hline(yintercept = 0.01) +
   xlab("Principal Components") +
   ylab("Proportion of Variance Explained")
-#fviz_eig(sngcll_pca, addlabels = TRUE)
 ```
 
-Since all depths of coverage and other statistics for gene expression is measured in the same scale, one might have such the intuitive thought that we should not center and scale the single cell expression data. Although both scaled and unscaled methods are implemented in literature, scaling the data would provide us with more details on genome subtypes. Considering gene A required expression level 1000 to be activated and gene B required expression 100, two genes are not comparable and gene A would contribute more to the PCs for bigger variance. Based on the plot, we can see the variance is significantly lower by centering and scaling the expression to 0-1.
 
-The genes contributed the most in the first six PCs are shown below.
+The genes contributed the most in the first six PCs are shown below, with absolute value of coefficient larger than 0.1. Based on the proportion of variance explained plot, only the first 20 PCs have the PVE larger than 0.01. All first 20 PCs passed the eigenvalue criterion. Thus, we choose 20 PCs to conduct further clustering.
 
 ## Apply EM algorithm
 
@@ -340,15 +346,35 @@ idff_genes = FindAllMarkers(sngcll_seurat,min.pct = 0.25)
 head(diff_genes_3)
 head(diff_genes_2)
 head(diff_genes_1)
+
+tibble(cluster_1 = head(diff_genes_1) %>% rownames(), 
+       cluster_2 = head(diff_genes_2) %>% rownames(),
+       cluster_3 = head(diff_genes_3) %>% rownames()) %>% 
+  knitr::kable(caption = "Top 6 genes to differentiate the clusters")
+
+VlnPlot(sngcll_seurat, features = c("cpxm1", "ccnb2"))
 ```
 
 
-  Result from gaussian mixture clustering is used as response variable and conduct classification. For cluster 
+  Result from gaussian mixture clustering is used as response variable and conduct classification. 
+  
+Using the package Seurat, we are able to test the difference in gene expression across cluster, and select the gene signatures which shows significant different patterns among clusters by conducting Wilcoxon rank-sum test. No assumption is assigned using the non-parametric test such that it is validated to find gene signatures. Top 6 gene signatures is detected and shown above, in which each genes is sufficient to differentiate the clusters with significant different distribution for each cluster. Based on the violin plot, the gene CPXM1 in cluster 2 obviously differed with the distribution of expression level in other two clusters. Same for the gene ccnb2 in cluster 3.
 
 
 ## Analysing Gaussian-Mixture model with Principal Component
 
   Clustering cell with EM algorithm has several drawbacks. The first of all shared problem with EM algorithm is slow computational time, \cite{very_fast} has compared EM based method with hierarchical methods, and EM method is slower than. The second problem is that EM algorithm's convergence and convergent time are rely on the initialization, a well separated center for initialization provide fast convergence, on the other hand, bad initialization lead to divergence. But the initialization is randomly assigned uniformly,  as a result, convergence is not always guaranteed. The third problem is that gaussian model may not fit RNA sequence expression. \cite{ZIFA} has pointed out that drop-out event leads to zero-inflated data, and gaussian mixture cannot address this problem. Also, \cite{poisson} provide poisson-mixture as a alternative for gaussian mixture.
+
+## Density-based clustering
+
+```{r}
+kNNdistplot(scale(sngcll), k = 5)
+db = dbscan(scale(sngcll), eps = 25, minPts = 5)
+hullplot(scale(sngcll), db$cluster)
+```
+
+The Density-based clustering method is based on the assumption that points shared similar characteristics would cluster together in a denser format. The method initialize with a core point, and expand the cluster if there are _minPts_ number of neighboring points with the radius of _epsilon_.The algorithm would stop when all points are classified as either seeds, borders, or outliers. Two parameters are the minimum number of neighboring points，and the searching radius (epsilon). The KNN distance plot have red-flagged the incapability of clustering the . Using minPts 5, and epsilon 25, we get the result of 1 cluster containing 581 points and 135 noises. Density-based clustering fail to capture the underlying genome subtypes possible due to the increasing complication in measuring distance between genes for high-dimensional data. Other clustering methods with greater flexibility should be implemented.
+
 
 ## Hierarchical clustering
 
@@ -409,17 +435,6 @@ fviz_gap_stat(gap_stat)
 
 In order to determine the optimal number of clusters, we applied Average Silhouette Method and Gap Statistic Method. Silhouette Method indicates that two-clusters-model fits our data best, while Gap Statistic Method shows that three-clusters is more suitable. After applying different clusters, we found that when we choose cluster = 3, each cluster has 548, 140, 28 items. When cluster = 2, each cluster has 548, 168 items. 
 
-## Density-based clustering
-
-```{r}
-view(sngcll_pca)
-kNNdistplot(sngcll_pca1, k = 5)
-abline(h = 4)
-db = dbscan(sngcll_pca1, eps = 4, minPts = 5)
-hullplot(sngcll_pca1, db$cluster)
-```
-
-The Density-based clustering method is based on the assumption that points shared similar characteristics would cluster together in a denser format. The method initialize with a core point, and expand the cluster if there are _minPts_ number of neighring points with the radius of _epsilon_.The algorithm would stop when all points are classified as either seeds, borders, or outliers. Two parameters are the minimum number of neighboring points，and the searching radius (epsilon). Using minPts 5, and epsilon 4, we get get 274 noises and 3 cluster containing 546, 5, 8 respectively. Since the PCA is sufficient to preserve distance information, we use PCs to cluster as in part b). Compared with the hierarchical clustering and GMM, density-based clustering perform much worse probably due to the increasing complication in measuring distance for high-dimensional data.
 
 ## Conclusion
 
