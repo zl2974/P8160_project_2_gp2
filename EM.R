@@ -21,7 +21,7 @@ objective =
       return(NA)}
     
     if (method == "deviance"|method == "AIC"){
-      k = sum(unique(cluster))
+      k = length(unique(cluster))
       Pr =
         mclapply(1:nrow(data),
                  FUN = function(x){
@@ -38,8 +38,9 @@ objective =
       L = sum(log(Pr))
       
       if (method == "AIC") {
-        Df = sum(ncol(mu)*(k+1))-1
+        Df = sum(ncol(mu)*(k+1),k)-1
         return(-2*(L-Df))}
+      
       return(L)}
     
     if(method == "CH"){
@@ -113,8 +114,6 @@ gaussian_mixture =
     
     cluster = rep(1,N)
     
-    Df = sum(k+k*ncol(data)+k*ncol(data)*ncol(data)+k*nrow(data))
-    
     obj = objective(data,cluster,p,mu,Sigma,method)
     
     obj0 = -Inf
@@ -182,7 +181,6 @@ gaussian_mixture =
       mu = mu,
       sigma = Sigma,
       p = p,
-      cluster = cluster,
-      df = Df
+      cluster = cluster
     ))
   }
