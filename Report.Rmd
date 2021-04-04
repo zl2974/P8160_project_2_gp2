@@ -130,7 +130,7 @@ sngcll_pca =
   predict(preProcess(
     sngcll_dp0,
     c("pca","center","scale"),
-    pcaComp = sum(summary(sngcll_pca)$importance[3, ]<.9)
+    pcaComp = 3
   ), sngcll_dp0)
 ```
 
@@ -208,7 +208,7 @@ pc2 = ggplot(sngcll_clu_3,aes(PC1,PC2,color = cluster))+geom_jitter(alpha = 0.8)
 
 pc3 = ggplot(sngcll_clu_3,aes(PC1,PC3,color = cluster))+geom_jitter(alpha = 0.8)
 
-pc4 = ggplot(sngcll_clu_3,aes(PC1,PC4,color = cluster))+geom_jitter(alpha = 0.8)
+pc4 = ggplot(sngcll_clu_3,aes(PC2,PC3,color = cluster))+geom_jitter(alpha = 0.8)
 
 pc2 + pc3+pc4 +plot_spacer()+ plot_layout(nrow = 2,ncol = 2, guides = "collect")
 ```
