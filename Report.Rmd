@@ -71,6 +71,7 @@ sngcll_dp0 =
   sngcll[,drop_gene]
 ```
 
+It is obvious that the raw single-cell sequencing data is inflated with 0. According to Pierson (2015), PCA using zero-inflated is a less optimal approach in dimension reduction. Followed the adjustment in the paper, we dropped genes with over 90% of zero inputs. 229 genes is used for further PCA and clustering after filtering.
 
 ## PCA
 
@@ -112,7 +113,6 @@ gridExtra::grid.arrange(pc1,pc2,pc3,pc4,pc5,pc6, nrow = 3)
 #eigen = sngcll_pca$sdev^2
 #which(eigen >= 1)
 fviz_pca_var(sngcll_pca, col.var = "black", repel = TRUE)
-autoplot(sngcll_pca,loadings = TRUE)
 
 tibble(PVE = unname(pca_summary$importance[2,]), PC = seq_along(pca_summary$importance)[1:229]) %>% 
   filter(PVE >= 0.01) %>% 
@@ -433,4 +433,8 @@ The Density-based clustering method is based on the assumption that points share
 
 ## Conclusion
 
+```{r}
+silhouette(unlist(rslt_2[which(rslt_2[,"k"]==3),"cluster"]), dist(gene, method = "euclidean"))
+silhouette(cutree(hc5, k = 2), dist(gene, method = "euclidean"))
+```
 
