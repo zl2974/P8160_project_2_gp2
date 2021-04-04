@@ -136,7 +136,7 @@ sngcll_pca =
   predict(preProcess(
     sngcll_dp0,
     c("center","scale","pca","center","scale"),
-    pcaComp = 3
+    pcaComp = 20
   ), sngcll_dp0)
 ```
 
@@ -224,7 +224,7 @@ pc2 + pc3+pc4 +plot_spacer()+ plot_layout(nrow = 2,ncol = 2, guides = "collect")
 ## Gene-expression signatures
 
 ```{r}
-load("EM.Rdata")
+load("EM_PC20.Rdata")
 
 X_tr = model.matrix(cluster~.,
                     cbind(sngcll_dp0,rslt_2[which(rslt_2[,"k"]==3),"cluster"]))[,-1]
