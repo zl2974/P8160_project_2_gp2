@@ -447,6 +447,10 @@ hullplot(sngcll_pca1, db$cluster)
 The Density-based clustering method is based on the assumption that points shared similar characteristics would cluster together in a denser format. The method initialize with a core point, and expand the cluster if there are _minPts_ number of neighring points with the radius of _epsilon_.The algorithm would stop when all points are classified as either seeds, borders, or outliers. Two parameters are the minimum number of neighboring points，and the searching radius (epsilon). Using minPts 5, and epsilon 4, we get get 274 noises and 3 cluster containing 546, 5, 8 respectively. Since the PCA is sufficient to preserve distance information, we use PCs to cluster as in part b). Compared with the hierarchical clustering and GMM, density-based clustering perform much worse probably due to the increasing complication in measuring distance for high-dimensional data.
 
 ## Conclusion
+
+In this analysis, we use Gaussian-Mixture model with Principal Component Analysis to explore our dataset.Gaussian mixture model performs soft classification, which means that it can gives us the probability that a given data point belongs to each of the possible clusters [1]. Besides, since our data takes on different shape, it’s better to use Gaussian. Principal component analysis (PCA) is an essential method for analyzing single-cell RNA-seq (scRNA-seq) datasets, but for large-scale scRNA-seq datasets, since PCA algorithms and implementations load all elements of the data matrix into the memory space, which means that method computation time is long and consumes large amounts of memory. Apart from that, the workflow of PCA is redundant and repeated, which can be replaced by fast PCA algorithms, like “Julia” package[2]. Finally. as for EM algorithm, it has many drawbacks, which we've already talked above, like time consuming and its convergence and convergent time only depends on initialization, which can generate hug divergence.
+
+
 In order to compare the EM algorithm and Hierarchical clustering method, we apply the silhouette coefficient to evaluate the performance of clustering methods. Since the ground truth labels of clusters are unknown, evaluation must be performed using the model itself. The Silhouette Coefficient s for a single sample is then given as:
 $$s = \frac{b-a}{max(a, b)} $$
 a: The mean distance between a sample and all other points in the same class.
@@ -464,4 +468,9 @@ plot(silhouette(unlist(rslt_2[which(rslt_2[,"k"]==3),"cluster"]), dist(gene, met
 The silhouette coefficient of EM algorithm is 0.12 and silhouette coefficient of hierarchical clustering is 0.21. A higher Silhouette Coefficient score relates to a model with better defined clusters. Therefore, the performance of hierarchical clustering is better than EM algorithm.
 
 
+## Reference
+
+[1] “Gaussian Mixture Models Clustering Algorithm Explained” from <https://towardsdatascience.com/gaussian-mixture-models-d13a5e915c8e>
+[2]”Benchmarking principal component analysis for large-scale single-cell RNA-sequencing
+” by Koki Tsuyuzaki1etc.
 
