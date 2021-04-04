@@ -272,7 +272,7 @@ ugene = apply(sngcll_sign,2,FUN = function(x) gene[which(x !=0)])
 
 ## Analysing Gaussian-Mixture model with Principal Component
 
-  Clustering cell with EM algorithm has sevaral drawbacks. The first of all shared problem with EM algorithm is slow computational time, \cite{very_fast} has compared EM based method with hierarchical methods, and EM method is slower than. The second problem is that EM algorithm's convergence and convergent time are rely on the initialization, a well separated center for initialization provide fast convergence, on the other hand, bad initialization lead to divergence. But the initialization is randomly assigned uniformly,  as a result, convergence is not always guaranteed. The third problem is that gaussian model may not fit RNA sequence expression. \cite{ZIFA} has pointed out that drop-out event leads to zero-inflated data, and gaussian mixture cannot address this problem. Also, \cite{poisson} provide poisson-mixture as a alternative for gaussian mixture.
+  Clustering cell with EM algorithm has several drawbacks. The first of all shared problem with EM algorithm is slow computational time, \cite{very_fast} has compared EM based method with hierarchical methods, and EM method is slower than. The second problem is that EM algorithm's convergence and convergent time are rely on the initialization, a well separated center for initialization provide fast convergence, on the other hand, bad initialization lead to divergence. But the initialization is randomly assigned uniformly,  as a result, convergence is not always guaranteed. The third problem is that gaussian model may not fit RNA sequence expression. \cite{ZIFA} has pointed out that drop-out event leads to zero-inflated data, and gaussian mixture cannot address this problem. Also, \cite{poisson} provide poisson-mixture as a alternative for gaussian mixture.
 
 ## Hierarchical clustering
 
@@ -346,3 +346,5 @@ hullplot(sngcll_pca1, db$cluster)
 The Density-based clustering method is based on the assumption that points shared similar characteristics would cluster together in a denser format. The method initialize with a core point, and expand the cluster if there are _minPts_ number of neighring points with the radius of _epsilon_.The algorithm would stop when all points are classified as either seeds, borders, or outliers. Two parameters are the minimum number of neighboring points，and the searching radius (epsilon). Using minPts 5, and epsilon 4, we get get 274 noises and 3 cluster containing 546, 5, 8 respectively. Since the PCA is sufficient to preserve distance information, we use PCs to cluster as in part b). Compared with the hierarchical clustering and GMM, density-based clustering perform much worse probably due to the increasing complication in measuring distance for high-dimensional data.
 
 ## Conclusion
+
+
