@@ -1,7 +1,9 @@
 ---
-title: "Report"
+title: "Group project 2 Report"
 author: "Liucheng Shi, Zhuohui Liang, Ruwen Zhou, Jiying Han"
-output: html_document
+output: 
+  pdf_document:
+    latex_engine : "xelatex"
 ---
 
 ```{r setup, include=FALSE}
@@ -16,8 +18,8 @@ library(patchwork)
 library(cluster)
 library(factoextra) 
 library(dendextend) 
-library(tidyverse)
 library(dbscan)
+library(tidyverse)
 
 knitr::opts_chunk$set(
   fig.height = 6,
@@ -70,7 +72,7 @@ sngcll_dp0 =
   sngcll[,drop_gene]
 ```
 
-It is obvious that the raw single-cell sequencing data is inflated with 0. According to Pierson (2015), PCA using zero-inflated is a less optimal approach in dimension reduction. Followed the adjustment in the paper, we dropped genes with over 90% of zero inputs. 229 genes is used for further PCA and clustering after filtering.
+Raw single-cell sequencing data is inflated with 0. According to Pierson (2015), PCA using zero-inflated is a less optimal approach in dimension reduction.Besides, zero-inflation(drop-out) event affecting the converging of EM clustering.  Followed the adjustment in the paper, we dropped genes with over 90% of zero inputs. 229 genes is used for further PCA and clustering after filtering.
 
 ## PCA
 
@@ -84,18 +86,18 @@ sngcll_pca =
           center = T,
           scale. = T)
 
-summary(sngcll_pca)$importance %>% 
-  t() %>% 
-  .[seq(1,230,8),] %>% 
-  as_tibble(rownames = NA) %>% 
-  knitr::kable(digits = 2)
+#summary(sngcll_pca)$importance %>% 
+#  t() %>% 
+#  .[seq(1,230,8),] %>% 
+#  as_tibble(rownames = NA) %>% 
+#  knitr::kable(digits = 2)
 
-sngcll_pca$rotation[,1:4] %>% t()%>% knitr::kable()
+#sngcll_pca$rotation[,1:4] %>% t()%>% knitr::kable()
 ```
 
 ```{r}
 pca_summary = summary(sngcll_pca)
-fviz_eig(prcomp(sngcll_dp0), addlabels = TRUE)
+#fviz_eig(prcomp(sngcll_dp0), addlabels = TRUE)
 fviz_eig(sngcll_pca, addlabels = TRUE)
 getpcfeatures = function(i) {
   df = pca_summary$rotation %>% 
@@ -133,7 +135,7 @@ tibble(PVE = unname(pca_summary$importance[2,]), PC = seq_along(pca_summary$impo
 
 The genes contributed the most in the first six PCs are shown below, with absolute value of coefficient larger than 0.1. Based on the proportion of variance explained plot, only the first 20 PCs have the PVE larger than 0.01. All first 20 PCs passed the eigenvalue criterion. Thus, we choose 20 PCs to conduct further clustering.
 
-## Apply EM algorithm
+## EM algorithm
 
 ```{r EM_data}
 # EM data preparation
@@ -188,7 +190,20 @@ $$L(\theta; \mathbf x,\mathbf r) = \prod_{i=1}^n \prod_{j=1}^k [p_j f(\mathbf x_
 &end&
 \end{tabular}
 
-  After optimizing, calculate observed Likelihood L. EM algorithm is optimized by the observed likelihood, but understanding that  assigning each cell to its own cluster would have the model with highest likelihood, but as thus lead to overfilling problem. With above concerns, the AIC loss function($-2(log(L)-n_p)$) is used instead of deviance, where $n_p=K+GK+G^2K+KN$. As rule of thumb, initial cluster's number is set as 2 to 10\cite{system_review}, and final cluster number is determined by model with lowest AIC.
+  After optimizing, calculate observed Likelihood L. EM algorithm is optimized by the observed likelihood, but understanding that  assigning each cell to its own cluster would have the model with highest likelihood, but as thus lead to overfilling problem. With above concerns, the AIC loss function($-2(log(L)-n_p)$) is used instead of deviance, where $n_p=G*(K+1)+K-1$. As rule of thumb, initial cluster's number is set as 2 to 10\cite{system_review}, and final cluster number is determined by model with lowest AIC.
+  
+## Hierachical clustering
+
+Hierarchical clustering is an alternative approach to k-means clustering for identifying groups in the dataset. In our project, our purpose is to classify scRNA-seq into different clusters based on their gene expressions and identify potential existence of cell subtypes. We choose agglomerative hierarchical clustering method, which is a bottom-up method. Each object is initially considered as a single-element cluster. At each step of the algorithm, the two clusters that are the most similar are combined into a new bigger cluster. The iteration will not stop until all elements are being classified into one single cluster. This makes the result a tree and can be visualized as a dendrogram.
+
+## Density method
+
+The Density-based clustering method is based on the assumption that points shared similar characteristics would cluster together in a denser format. The method initialize with a core point, and expand the cluster if there are _minPts_ number of neighboring points with the radius of _epsilon_.The algorithm would stop when all points are classified as either seeds, borders, or outliers. Two parameters are the minimum number of neighboring points，and the searching radius (epsilon). 
+
+  
+## Signature selection
+
+  Two methods of gene signature selection is performed and compared. Recursively Feature Elimination Support Vector Machine(SVM-RFE) is classification method based on support vectors, and in each iteration, the predictors with smallest importance are removed until the specified subset is reached. Based on cross-validation method, the subset with best loss function, in our case-Accuracy, is selected. Another method is used is Wilcoxson test with Berforroni p-value adjustment, each cluster's differential expressions are evaluated based on rank based method. Not significant genes are removed and re-evaluated with smaller subset.
   
 # Result
 
@@ -196,54 +211,146 @@ $$L(\theta; \mathbf x,\mathbf r) = \prod_{i=1}^n \prod_{j=1}^k [p_j f(\mathbf x_
 ```{r plot}
 load("EM_PC20.Rdata")
 
-load("EM20_PC20.Rdata")
-
 ggplot(
-  rslt %>%
+  rslt_2 %>%
     as_tibble() %>%
     unnest(c(k, obj)) %>%
-    filter(obj > 0) %>%
     group_by(k) %>%
     summarise(aic = mean(obj), sd = sd(obj)),
   aes(k, aic)
 ) +
-  geom_point() +
-  geom_errorbar(aes(ymin = aic - sd, ymax = aic + sd), width = .3,color = "red" ) +
+  geom_path() +
+  #geom_errorbar(aes(ymin = aic - sd, ymax = aic + sd), width = .3,color = "red" ) +
   scale_x_continuous(limits = c(1.6,10.4),n.breaks = 9)+
   labs(y = "AIC",
-       title = "EM clustering (20 runs)")
+       title = "EM clustering")
 
-sngcll_clu_3 = cbind(sngcll_pca,rslt_2[which(rslt_2[,"k"]==3),"cluster"])
+sngcll_clu_3 = cbind(sngcll_pca,rslt_2[which(rslt_2[,"k"]==4),"cluster"])
 
-pc2 = ggplot(sngcll_clu_3,aes(PC1,PC2,color = cluster))+geom_jitter(alpha = 0.8)
+pc2 = ggplot(sngcll_clu_3,aes(PC1,PC2,color = cluster))+geom_point(alpha = 0.8)
 
-pc3 = ggplot(sngcll_clu_3,aes(PC1,PC3,color = cluster))+geom_jitter(alpha = 0.8)
+pc3 = ggplot(sngcll_clu_3,aes(PC1,PC3,color = cluster))+geom_point(alpha = 0.8)
 
-pc4 = ggplot(sngcll_clu_3,aes(PC2,PC3,color = cluster))+geom_jitter(alpha = 0.8)
+pc4 = ggplot(sngcll_clu_3,aes(PC1,PC4,color = cluster))+geom_point(alpha = 0.8)
 
-pc2 + pc3+pc4 +plot_spacer()+ plot_layout(nrow = 2,ncol = 2, guides = "collect")
+pc5 = ggplot(sngcll_clu_3,aes(PC1,PC5,color = cluster))+geom_point(alpha = 0.8)
+
+pc2 + pc3+pc4 +pc5+ plot_layout(nrow = 2,ncol = 2, guides = "collect")
 ```
 
-  The number of cluster is selected based on 20 runs of EM algorithm, and it shows that clustering with 3 clusters has the lowest average AIC. With each cell assigned to cluster, PC component plot displays a well separated cluster pattern.
+  The number of cluster is selected based on lowest AIC of EM algorithm, and it shows that clustering with 4 clusters has the lowest average AIC. Based on the result of single run, in the case of having 4 clusters, the proportion of cell in each cluster is `r rslt_2[which(rslt_2[,"k"]==4),"p"]$p`. With each cell assigned to cluster, PC component plot displays a well separated cluster pattern.
+
+
+## Density-based clustering
+
+```{r}
+kNNdistplot(scale(sngcll), k = 5)
+db = dbscan(scale(sngcll), eps = 25, minPts = 5)
+hullplot(scale(sngcll), db$cluster)
+```
+
+The KNN distance plot have red-flagged the incapability of clustering the . Using minPts 5, and epsilon 25, we get the result of 1 cluster containing 581 points and 135 noises. Density-based clustering fail to capture the underlying genome subtypes possible due to the increasing complication in measuring distance between genes for high-dimensional data. Other clustering methods with greater flexibility should be implemented.
+
+
+## Hierarchical clustering
+
+When measuring the dissimilarity between each pair of observations distance, Euclidean distance has been used. However, when measuring the dissimilarity between two clusters of observations, we have applied different methods.
+
+* Minimum or single linkage clustering: It computes all pairwise dissimilarities between the elements in cluster 1 and the elements in cluster 2, and considers the smallest of these dissimilarities as a linkage criterion.
+
+```{r, include=F}
+gene <- read_csv("ss.csv")
+gene <- scale(gene)
+```
+
+```{r hclust,cache=T}
+# Dissimilarity matrix
+d <- dist(gene, method = "euclidean")
+
+# Hierarchical clustering using single Linkage
+hc1 <- hclust(d, method = "complete" )
+
+# Plot the obtained dendrogram
+plot(hc1, cex = 0.6, hang = -1)
+```
+
+Ward’s minimum variance method: It minimizes the total within-cluster variance. At each step the pair of clusters with minimum between-cluster distance are merged.
+
+```{r}
+# Ward's method
+hc5 <- hclust(d, method = "ward.D2" )
+
+# Cut tree into 2 groups
+sub_grp <- cutree(hc5, k = 2)
+
+# Number of members in each cluster
+table(sub_grp)
+```
+
+```{r}
+plot(hc5, cex = 0.6)
+rect.hclust(hc5, k = 2, border = 2:5)
+```
+
+Visualize the result in a scatter plot.
+
+```{r}
+fviz_cluster(list(data = gene, cluster = sub_grp))
+```
+
+Determining Optimal Clusters
+
+* Average Silhouette Method
+
+```{r}
+fviz_nbclust(gene, FUN = hcut, method = "silhouette")
+```
+
+* Gap Statistic Method
+
+```{r gap,cache=T}
+gap_stat <- clusGap(gene, FUN = hcut, nstart = 25, K.max = 10, B = 50)
+fviz_gap_stat(gap_stat)
+```
+
+In order to determine the optimal number of clusters, we applied Average Silhouette Method and Gap Statistic Method. Silhouette Method indicates that two-clusters-model fits our data best, while Gap Statistic Method shows that three-clusters is more suitable. After applying different clusters, we found that when we choose cluster = 3, each cluster has 548, 140, 28 items. When cluster = 2, each cluster has 548, 168 items. 
+
+## Comparison
+
+In order to compare the EM algorithm and Hierarchical clustering method, we apply the silhouette coefficient to evaluate the performance of clustering methods. Since the ground truth labels of clusters are unknown, evaluation must be performed using the model itself. The Silhouette Coefficient s for a single sample is then given as:
+$$s = \frac{b-a}{max(a, b)} $$
+a: The mean distance between a sample and all other points in the same class.
+b: The mean distance between a sample and all other points in the next nearest cluster.
+
+
+```{r}
+plot(silhouette(cutree(hc5, k = 2), dist(gene, method = "euclidean")))
+```
+
+```{r}
+plot(silhouette(unlist(rslt_2[which(rslt_2[,"k"]==4),"cluster"]), dist(gene, method = "euclidean")))
+```
+
+The silhouette coefficient of EM algorithm is 0.12 and silhouette coefficient of hierarchical clustering is 0.21. A higher Silhouette Coefficient score relates to a model with better defined clusters. Therefore, the performance of hierarchical clustering is better than EM algorithm.
 
 ## Gene-expression signatures
-
-  Two methods of gene signature selection is performed and compared. Recursively Feature Elimination Support Vector Machine(SVM-RFE) is classification method based on support vectors, and in each iteration, the predictors with smallest importance are removed until the specified subset is reached. Based on cross-validation method, the subset with best loss function, in our case-Accuracy, is selected. Another method is used is Wilcoxson test with Berforroni p-value adjustment, each cluster's differential expressions are evaluated based on rank based method. Not significant genes are removed and re-evaluated with smaller subset.
+  
+### SVM-RFE
   
 ```{r}  
 load("EM_PC20.Rdata")
 
 X_tr = model.matrix(cluster~.,
-                    cbind(sngcll_dp0,rslt_2[which(rslt_2[,"k"]==3),"cluster"]))[,-1]
+                    cbind(sngcll_dp0,rslt_2[which(rslt_2[,"k"]==4),"cluster"]))[,-1]
 
-Y_tr= rslt_2[which(rslt_2[,"k"]==3),"cluster"] %>% 
+Y_tr= rslt_2[which(rslt_2[,"k"]==4),"cluster"] %>% 
   unlist() 
 ```
 
-```{r svm_rfd}
+```{r svm_rfd,cache=T}
 set.seed(123123)
 
-Y_tr= rslt_2[which(rslt_2[,"k"]==3),"cluster"] %>% 
+Y_tr= rslt_2[which(rslt_2[,"k"]==4),"cluster"] %>% 
   unlist() %>% as.character() %>% str_c("cluster_",.)
 
 cl = parallel::makePSOCKcluster(5)
@@ -296,6 +403,19 @@ svm_3 = rfe(
   rfeControl= rfec
 )
 
+Y_tr4 = Y_tr
+Y_tr4[Y_tr!="cluster_4"] = "other"
+
+svm_4 = rfe(
+  X_tr,
+  Y_tr4%>% as.factor(),
+  sizes = c(5:10,20,50,80,100,125),
+  preProcess = c("center"),
+  metric = "Accuracy",
+  tuneLenght = 5,
+  rfeControl= rfec
+)
+
 svm_all = rfe(
   X_tr,
   Y_tr %>% as.factor(),
@@ -307,6 +427,12 @@ svm_all = rfe(
 )
 
 stopCluster(cl)
+
+
+tibble(cluster = 1:4,
+       number_of_signature = c(svm_1$bestSubset,svm_2$bestSubset,svm_3$bestSubset,svm_4$bestSubset),
+       top_signature = list(svm_1$optVariables[1:5],svm_2$optVariables[1:5],svm_3$optVariables[1:5],svm_4$optVariables[1:5]) %>% lapply(.,function(x) str_c(x,collapse = "||")) %>% unlist) %>% 
+  knitr::kable(caption = "SVM-RFE")
 
 top_5 = predictors(svm_all) %>% head(5)
 
@@ -332,131 +458,53 @@ p4 = ggplot(plot_data,aes_string(x = "PC1", y = "PC2", color = top_5[4]))+
 p1+p2 + p3 + p4 + plot_layout(nrow =2)+plot_annotation(title = "Top 4 features pecentile plot")
 ```
 
+
+  SVM-RFE method choosing 20 to full genes subset as signature, indicating incapable to reduce features. For each cluster, SVM selected and rank the importance of each gene, the first five gene signature for cluster 1 is `r svm_1$optVariables[1:5]`, `r svm_2$optVariables[1:5]` for cluster 2, `r svm_3$optVariables[1:5]` for cluster 3 and , `r svm_4$optVariables[1:5]` for cluster 4. The number of gene signatures chosen to classify all clusters is 100, which its top 4 signature are plotted against PC component in quantile scale. According to the plot, these gene display similiar distribution to the the clusters.
+
 ```{r Seurat}
+library(Seurat)
 seurat.data = as.matrix(scale(sngcll_dp0)) %>% t()
 colnames(seurat.data) = str_c("Cell_", seq(1,716))
 
 sngcll_seurat <- CreateSeuratObject(counts = seurat.data, project = "scRNA", min.cells = 1, min.features = 1)
-Idents(sngcll_seurat) <- unlist(rslt_2[which(rslt_2[,"k"] == 3),"cluster"])
+Idents(sngcll_seurat) <- unlist(rslt_2[which(rslt_2[,"k"] == 4),"cluster"])
 
-diff_genes_3 <- FindMarkers(sngcll_seurat, ident.1 = 3, ident.2 = c(1, 2), min.pct = 0.25) #genes differentiate 3 from 1 & 2
-diff_genes_2 <- FindMarkers(sngcll_seurat, ident.1 = 2, ident.2 = c(1, 3), min.pct = 0.25)
-diff_genes_1 <- FindMarkers(sngcll_seurat, ident.1 = 1, ident.2 = c(2, 3), min.pct = 0.25)
+diff_genes_4 <- FindMarkers(sngcll_seurat, ident.1 = 4, ident.2 = c(1, 2, 3), min.pct = 0.25) #genes differentiate 3 from 1 & 2
+
+diff_genes_3 <- FindMarkers(sngcll_seurat, ident.1 = 3, ident.2 = c(1, 2, 4), min.pct = 0.25) #genes differentiate 3 from 1 & 2
+diff_genes_2 <- FindMarkers(sngcll_seurat, ident.1 = 2, ident.2 = c(1, 3, 4), min.pct = 0.25)
+diff_genes_1 <- FindMarkers(sngcll_seurat, ident.1 = 1, ident.2 = c(2, 3, 4), min.pct = 0.25)
 idff_genes = FindAllMarkers(sngcll_seurat,min.pct = 0.25)
-head(diff_genes_3)
-head(diff_genes_2)
-head(diff_genes_1)
+#head(diff_genes_3)
+#head(diff_genes_2)
+#head(diff_genes_1)
 
 tibble(cluster_1 = head(diff_genes_1) %>% rownames(), 
        cluster_2 = head(diff_genes_2) %>% rownames(),
-       cluster_3 = head(diff_genes_3) %>% rownames()) %>% 
+       cluster_3 = head(diff_genes_3) %>% rownames(),
+        cluster_4 = head(diff_genes_4) %>% rownames()) %>% 
   knitr::kable(caption = "Top 6 genes to differentiate the clusters")
+
+tibble(cluster = 1:4,
+       number_of_signature =
+         c(nrow(diff_genes_1),nrow(diff_genes_2),nrow(diff_genes_3),nrow(diff_genes_4))) %>% 
+  knitr::kable(caption = "Number of signature")
 
 VlnPlot(sngcll_seurat, features = c("cpxm1", "ccnb2"))
 ```
 
-
+### Seurat
   Result from gaussian mixture clustering is used as response variable and conduct classification. 
   
-Using the package Seurat, we are able to test the difference in gene expression across cluster, and select the gene signatures which shows significant different patterns among clusters by conducting Wilcoxon rank-sum test. No assumption is assigned using the non-parametric test such that it is validated to find gene signatures. Top 6 gene signatures is detected and shown above, in which each genes is sufficient to differentiate the clusters with significant different distribution for each cluster. Based on the violin plot, the gene CPXM1 in cluster 2 obviously differed with the distribution of expression level in other two clusters. Same for the gene ccnb2 in cluster 3.
+  Using the package Seurat, we are able to test the difference in gene expression across cluster, and select the gene signatures which shows significant different patterns among clusters by conducting Wilcoxon rank-sum test. No assumption is assigned using the non-parametric test such that it is validated to find gene signatures. Top 6 gene signatures is detected and shown above, in which each genes is sufficient to differentiate the clusters with significant different distribution for each cluster. Based on the violin plot, the gene CPXM1 in cluster 2 obviously differed with the distribution of expression level in other two clusters. Same for the gene ccnb2 in cluster 3.
 
+ Comparing signature of seurat wilcoxon rank test and svm-rfe method, wilcoxon rank test is better in terms of variation of numbers of signature, but the number of signatures are too high. Whereas SVM-RFE successfully selected fewer signature in some cases and maintain high predictabiliy. Top 5 signatures selected are also varies in two methods.
 
-## Analysing Gaussian-Mixture model with Principal Component
+# Conclusion
 
-  Clustering cell with EM algorithm has several drawbacks. The first of all shared problem with EM algorithm is slow computational time, \cite{very_fast} has compared EM based method with hierarchical methods, and EM method is slower than. The second problem is that EM algorithm's convergence and convergent time are rely on the initialization, a well separated center for initialization provide fast convergence, on the other hand, bad initialization lead to divergence. But the initialization is randomly assigned uniformly,  as a result, convergence is not always guaranteed. The third problem is that gaussian model may not fit RNA sequence expression. \cite{ZIFA} has pointed out that drop-out event leads to zero-inflated data, and gaussian mixture cannot address this problem. Also, \cite{poisson} provide poisson-mixture as a alternative for gaussian mixture.
+In this analysis, we use Gaussian-Mixture model with Principal Component Analysis to explore our dataset.Gaussian mixture model performs soft classification, which means that it can gives us the probability that a given data point belongs to each of the possible clusters [1]. Besides, since our data takes on different shape, it’s better to use Gaussian. Principal component analysis (PCA) is an essential method for analyzing single-cell RNA-seq (scRNA-seq) datasets, but for large-scale scRNA-seq datasets, since PCA algorithms and implementations load all elements of the data matrix into the memory space, which means that method computation time is long and consumes large amounts of memory. Apart from that, the workflow of PCA is redundant and repeated, which can be replaced by fast PCA algorithms, like “Julia” package[2]. Finally. as for EM algorithm,   clustering cell with EM algorithm has several drawbacks. The first of all shared problem with EM algorithm is slow computational time, \cite{very_fast} has compared EM based method with hierarchical methods, and EM method is slower. The second problem is that EM algorithm's convergence and convergent time are rely on the initialization, a well separated center for initialization provide fast convergence, on the other hand, bad initialization lead to divergence. But the initialization is randomly assigned uniformly,  as a result, convergence is not always guaranteed. The third problem is that gaussian model may not fit RNA sequence expression. \cite{ZIFA} has pointed out that drop-out event leads to zero-inflated data, and gaussian mixture cannot address this problem. Also, \cite{poisson} provides poisson-mixture as a alternative for gaussian mixture.. Another problem with model-based method is over-estimating. Model-based method has tendency to over-estimate number of cluster, for example, AIC method do not penalize much when K is large, leading to potential of over-estimating.
 
-## Density-based clustering
-
-```{r}
-kNNdistplot(scale(sngcll), k = 5)
-db = dbscan(scale(sngcll), eps = 25, minPts = 5)
-hullplot(scale(sngcll), db$cluster)
-```
-
-The Density-based clustering method is based on the assumption that points shared similar characteristics would cluster together in a denser format. The method initialize with a core point, and expand the cluster if there are _minPts_ number of neighboring points with the radius of _epsilon_.The algorithm would stop when all points are classified as either seeds, borders, or outliers. Two parameters are the minimum number of neighboring points，and the searching radius (epsilon). The KNN distance plot have red-flagged the incapability of clustering the . Using minPts 5, and epsilon 25, we get the result of 1 cluster containing 581 points and 135 noises. Density-based clustering fail to capture the underlying genome subtypes possible due to the increasing complication in measuring distance between genes for high-dimensional data. Other clustering methods with greater flexibility should be implemented.
-
-
-## Hierarchical clustering
-
-Hierarchical clustering is an alternative approach to k-means clustering for identifying groups in the dataset. In our project, our purpose is to classify scRNA-seq into different clusters based on their gene expressions and identify potential existence of cell subtypes. We choose agglomerative hierarchical clustering method, which is a bottom-up method. Each object is initially considered as a single-element cluster. At each step of the algorithm, the two clusters that are the most similar are combined into a new bigger cluster. The iteration will not stop until all elements are being classified into one single cluster. This makes the result a tree and can be visualized as a dendrogram.
-
-When measuring the dissimilarity between each pair of observations distance, Euclidean distance has been used. However, when measuring the dissimilarity between two clusters of observations, we have applied different methods.
-
-* Minimum or single linkage clustering: It computes all pairwise dissimilarities between the elements in cluster 1 and the elements in cluster 2, and considers the smallest of these dissimilarities as a linkage criterion.
-
-```{r, include=F}
-gene <- read_csv("ss.csv")
-gene <- scale(gene)
-```
-
-```{r}
-# Dissimilarity matrix
-d <- dist(gene, method = "euclidean")
-
-# Hierarchical clustering using single Linkage
-hc1 <- hclust(d, method = "complete" )
-
-# Plot the obtained dendrogram
-plot(hc1, cex = 0.6, hang = -1)
-```
-Ward’s minimum variance method: It minimizes the total within-cluster variance. At each step the pair of clusters with minimum between-cluster distance are merged.
-
-```{r}
-# Ward's method
-hc5 <- hclust(d, method = "ward.D2" )
-
-# Cut tree into 2 groups
-sub_grp <- cutree(hc5, k = 2)
-
-# Number of members in each cluster
-table(sub_grp)
-```
-
-```{r}
-plot(hc5, cex = 0.6)
-rect.hclust(hc5, k = 2, border = 2:5)
-```
-Visualize the result in a scatter plot.
-```{r}
-fviz_cluster(list(data = gene, cluster = sub_grp))
-```
-
-Determining Optimal Clusters
-
-* Average Silhouette Method
-```{r}
-fviz_nbclust(gene, FUN = hcut, method = "silhouette")
-```
-* Gap Statistic Method
-```{r}
-gap_stat <- clusGap(gene, FUN = hcut, nstart = 25, K.max = 10, B = 50)
-fviz_gap_stat(gap_stat)
-```
-
-In order to determine the optimal number of clusters, we applied Average Silhouette Method and Gap Statistic Method. Silhouette Method indicates that two-clusters-model fits our data best, while Gap Statistic Method shows that three-clusters is more suitable. After applying different clusters, we found that when we choose cluster = 3, each cluster has 548, 140, 28 items. When cluster = 2, each cluster has 548, 168 items. 
-
-
-## Conclusion
-
-In this analysis, we use Gaussian-Mixture model with Principal Component Analysis to explore our dataset.Gaussian mixture model performs soft classification, which means that it can gives us the probability that a given data point belongs to each of the possible clusters [1]. Besides, since our data takes on different shape, it’s better to use Gaussian. Principal component analysis (PCA) is an essential method for analyzing single-cell RNA-seq (scRNA-seq) datasets, but for large-scale scRNA-seq datasets, since PCA algorithms and implementations load all elements of the data matrix into the memory space, which means that method computation time is long and consumes large amounts of memory. Apart from that, the workflow of PCA is redundant and repeated, which can be replaced by fast PCA algorithms, like “Julia” package[2]. Finally. as for EM algorithm, it has many drawbacks, which we've already talked above, like time consuming and its convergence and convergent time only depends on initialization, which can generate hug divergence.
-
-
-In order to compare the EM algorithm and Hierarchical clustering method, we apply the silhouette coefficient to evaluate the performance of clustering methods. Since the ground truth labels of clusters are unknown, evaluation must be performed using the model itself. The Silhouette Coefficient s for a single sample is then given as:
-$$s = \frac{b-a}{max(a, b)} $$
-a: The mean distance between a sample and all other points in the same class.
-b: The mean distance between a sample and all other points in the next nearest cluster.
-
-
-```{r}
-plot(silhouette(cutree(hc5, k = 2), dist(gene, method = "euclidean")))
-```
-
-```{r}
-plot(silhouette(unlist(rslt_2[which(rslt_2[,"k"]==3),"cluster"]), dist(gene, method = "euclidean")))
-```
-
-The silhouette coefficient of EM algorithm is 0.12 and silhouette coefficient of hierarchical clustering is 0.21. A higher Silhouette Coefficient score relates to a model with better defined clusters. Therefore, the performance of hierarchical clustering is better than EM algorithm.
-
+  On the other hand, graphical method, hierarchical and k-means method do not have strong model assumption as EM method. According to \cite{system}, Graphical method `Seurat` has the fastest run time, followed by biracial method. Model based method is just faster than k-means methods. 
 
 ## Reference
 
