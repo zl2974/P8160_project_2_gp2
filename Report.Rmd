@@ -501,84 +501,13 @@ VlnPlot(sngcll_seurat, features = c("timp1","higd1b"))
 ```
   
 <<<<<<< HEAD
-  Using the package Seurat [4], we are able to test the difference in gene expression across cluster, and select the gene signatures which shows significant different patterns among clusters by conducting Wilcoxon rank-sum test. No assumption is assigned using the non-parametric test such that it is validated to find gene signatures. Top 6 gene signatures is detected and shown above, in which each genes is sufficient to differentiate the clusters with significant different distribution for each cluster. Based on the violin plot, the gene higd1b in cluster 2 obviously differed with the distribution of expression level in other three clusters. Same for the gene timp1 in cluster 1.  
+  Using the package Seurat, we are able to test the difference in gene expression across cluster, and select the gene signatures which shows significant different patterns among clusters by conducting Wilcoxon rank-sum test. No assumption is assigned using the non-parametric test such that it is validated to find gene signatures. Top 6 gene signatures is detected and shown above, in which each genes is sufficient to differentiate the clusters with significant different distribution for each cluster. Based on the violin plot, the gene higd1b in cluster 2 obviously differed with the distribution of expression level in other three clusters. Same for the gene timp1 in cluster 1.  
   Comparing signature of seurat wilcoxon rank test and svm-rfe method, Wilcoxon rank test is better in terms of variation of numbers of signature, but the number of signatures are too high. Whereas SVM-RFE successfully selected fewer signature in some cases and maintain high predictability. Top 5 signatures selected are also varies in two methods.
 
 
 ## Analysing Gaussian-Mixture model with Principal Component
 
-  Clustering cell with EM algorithm has several drawbacks. The first of all shared problem with EM algorithm is slow computational time, \cite{very_fast} has compared EM based method with hierarchical methods, and EM method is slower than. The second problem is that EM algorithm's convergence and convergent time are rely on the initialization, a well separated center for initialization provide fast convergence, on the other hand, bad initialization lead to divergence. But the initialization is randomly assigned uniformly,  as a result, convergence is not always guaranteed. The third problem is that gaussian model may not fit RNA sequence expression. \cite{ZIFA} has pointed out that drop-out event leads to zero-inflated data, and gaussian mixture cannot address this problem. Also, \cite{poisson} provide poisson-mixture as a alternative for gaussian mixture.
-
-## Density-based clustering
-
-```{r}
-kNNdistplot(scale(sngcll), k = 5)
-db = dbscan(scale(sngcll), eps = 25, minPts = 5)
-hullplot(scale(sngcll), db$cluster)
-```
-
-The Density-based clustering method is based on the assumption that points shared similar characteristics would cluster together in a denser format. The method initialize with a core point, and expand the cluster if there are _minPts_ number of neighboring points with the radius of _epsilon_. The algorithm would stop when all points are classified as either seeds, borders, or outliers. Two parameters are the minimum number of neighboring points，and the searching radius (epsilon). The KNN distance plot have red-flagged the incapability of clustering. Using minPts 5, and epsilon 25, we get the result of 1 cluster containing 581 points and 135 noises. Density-based clustering fail to capture the underlying genome subtypes possible due to the increasing complication in measuring distance between genes for high-dimensional data. Other clustering methods with greater flexibility should be implemented.
-
-
-## Hierarchical clustering
-
-Hierarchical clustering is an alternative approach to k-means clustering for identifying groups in the dataset. In our project, our purpose is to classify scRNA-seq into different clusters based on their gene expressions and identify potential existence of cell subtypes. We choose agglomerative hierarchical clustering method, which is a bottom-up method. Each object is initially considered as a single-element cluster. At each step of the algorithm, the two clusters that are the most similar are combined into a new bigger cluster. The iteration will not stop until all elements are being classified into one single cluster. This makes the result a tree and can be visualized as a dendrogram.
-
-When measuring the dissimilarity between each pair of observations distance, Euclidean distance has been used. However, when measuring the dissimilarity between two clusters of observations, we have applied different methods.
-
-* Minimum or single linkage clustering: It computes all pairwise dissimilarities between the elements in cluster 1 and the elements in cluster 2, and considers the smallest of these dissimilarities as a linkage criterion.
-
-```{r, include=F}
-gene <- read_csv("ss.csv")
-gene <- scale(gene)
-```
-
-```{r}
-# Dissimilarity matrix
-d <- dist(gene, method = "euclidean")
-
-# Hierarchical clustering using single Linkage
-hc1 <- hclust(d, method = "complete" )
-
-# Plot the obtained dendrogram
-plot(hc1, cex = 0.6, hang = -1)
-```
-* Ward’s minimum variance method: It minimizes the total within-cluster variance. At each step the pair of clusters with minimum between-cluster distance are merged.
-
-```{r}
-# Ward's method
-hc5 <- hclust(d, method = "ward.D2" )
-
-# Cut tree into 2 groups
-sub_grp <- cutree(hc5, k = 2)
-
-# Number of members in each cluster
-table(sub_grp)
-```
-
-```{r}
-plot(hc5, cex = 0.6)
-rect.hclust(hc5, k = 2, border = 2:5)
-```
-Visualize the result in a scatter plot.
-```{r}
-fviz_cluster(list(data = gene, cluster = sub_grp))
-```
-
-Determining Optimal Clusters
-
-* Average Silhouette Method
-```{r}
-fviz_nbclust(gene, FUN = hcut, method = "silhouette")
-```
-* Gap Statistic Method
-```{r}
-gap_stat <- clusGap(gene, FUN = hcut, nstart = 25, K.max = 10, B = 50)
-fviz_gap_stat(gap_stat)
-```
-
-In order to determine the optimal number of clusters, we applied Average Silhouette Method and Gap Statistic Method. Silhouette Method indicates that two-clusters-model fits our data best, while Gap Statistic Method shows that three-clusters is more suitable. After applying different clusters, we found that when we choose cluster = 3, each cluster has 548, 140, 28 items respectively. When cluster = 2, each cluster has 548, 168 items respectively. 
-
+  Clustering cell with EM algorithm has several drawbacks. The first of all shared problem with EM algorithm is slow computational time, Peijie Lin etc. has compared EM based method with hierarchical methods, and EM method is slower than. The second problem is that EM algorithm's convergence and convergent time are rely on the initialization, a well separated center for initialization provide fast convergence, on the other hand, bad initialization lead to divergence. But the initialization is randomly assigned uniformly,  as a result, convergence is not always guaranteed. The third problem is that gaussian model may not fit RNA sequence expression. Emma Pierson and Christopher Yau have pointed out that drop-out event leads to zero-inflated data, and gaussian mixture cannot address this problem. Also, poisson provide poisson-mixture as a alternative for gaussian mixture.
 
 # Conclusion
 
