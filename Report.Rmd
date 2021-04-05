@@ -95,8 +95,9 @@ sngcll_pca$rotation[,1:4] %>% t()%>% knitr::kable()
 
 ```{r}
 pca_summary = summary(sngcll_pca)
-fviz_eig(prcomp(sngcll_dp0), addlabels = TRUE)
-fviz_eig(sngcll_pca, addlabels = TRUE)
+pca_1 = fviz_eig(prcomp(sngcll_dp0), addlabels = TRUE, main = "PVEs before scaling")
+pca_2 = fviz_eig(sngcll_pca, addlabels = TRUE, main = "PVEs after scaling")
+gridExtra::grid.arrange(pca_1, pca_2, ncol = 2)
 getpcfeatures = function(i) {
   df = pca_summary$rotation %>% 
     as.data.frame() %>%  mutate(feature = row.names(.)) %>% 
@@ -115,11 +116,13 @@ Since all depths of coverage and other statistics for gene expression is measure
 pc1 = getpcfeatures(1); pc2 = getpcfeatures(2); pc3 = getpcfeatures(3);
 pc4 = getpcfeatures(4); pc5 = getpcfeatures(5); pc6 = getpcfeatures(6)
 gridExtra::grid.arrange(pc1,pc2,pc3,pc4,pc5,pc6, nrow = 3)
-
-#eigen = sngcll_pca$sdev^2
-#which(eigen >= 1)
 fviz_pca_var(sngcll_pca, col.var = "black", repel = TRUE)
+```
 
+
+The genes contributed the most in the first six PCs are shown below, with absolute value of coefficient larger than 0.1. The loading plots also demonstrate how features influence the principal components. Loading ranges from -1 to 1, whereas values close to 1 and -1 shows the feature strongly influence the PC, and values close to 0 shows the feature is weakly influence the PC. RGS5 and HIGB1D strongly influence the first PC, and DBI, FTH1, CASP1, and RBP1 strongly influence the second PC. 
+
+```{r}
 tibble(PVE = unname(pca_summary$importance[2,]), PC = seq_along(pca_summary$importance)[1:229]) %>% 
   filter(PVE >= 0.01) %>% 
   ggplot(aes(PC, PVE, group = 1, label = PC)) + 
@@ -128,10 +131,11 @@ tibble(PVE = unname(pca_summary$importance[2,]), PC = seq_along(pca_summary$impo
   geom_hline(yintercept = 0.01) +
   xlab("Principal Components") +
   ylab("Proportion of Variance Explained")
+#eigen = sngcll_pca$sdev^2
+#which(eigen >= 1)
 ```
 
-
-The genes contributed the most in the first six PCs are shown below, with absolute value of coefficient larger than 0.1. Based on the proportion of variance explained plot, only the first 20 PCs have the PVE larger than 0.01. All first 20 PCs passed the eigenvalue criterion. Thus, we choose 20 PCs to conduct further clustering.
+Based on the proportion of variance explained plot, only the first 20 PCs have the PVE larger than 0.01. All first 20 PCs passed the eigenvalue criterion. Thus, we choose 20 PCs to conduct further clustering.
 
 ## Apply EM algorithm
 
@@ -373,7 +377,7 @@ db = dbscan(scale(sngcll), eps = 25, minPts = 5)
 hullplot(scale(sngcll), db$cluster)
 ```
 
-The Density-based clustering method is based on the assumption that points shared similar characteristics would cluster together in a denser format. The method initialize with a core point, and expand the cluster if there are _minPts_ number of neighboring points with the radius of _epsilon_.The algorithm would stop when all points are classified as either seeds, borders, or outliers. Two parameters are the minimum number of neighboring points，and the searching radius (epsilon). The KNN distance plot have red-flagged the incapability of clustering the . Using minPts 5, and epsilon 25, we get the result of 1 cluster containing 581 points and 135 noises. Density-based clustering fail to capture the underlying genome subtypes possible due to the increasing complication in measuring distance between genes for high-dimensional data. Other clustering methods with greater flexibility should be implemented.
+The Density-based clustering method is based on the assumption that points shared similar characteristics would cluster together in a denser format. The method initialize with a core point, and expand the cluster if there are _minPts_ number of neighboring points with the radius of _epsilon_. The algorithm would stop when all points are classified as either seeds, borders, or outliers. Two parameters are the minimum number of neighboring points，and the searching radius (epsilon). The KNN distance plot have red-flagged the incapability of clustering. Using minPts 5, and epsilon 25, we get the result of 1 cluster containing 581 points and 135 noises. Density-based clustering fail to capture the underlying genome subtypes possible due to the increasing complication in measuring distance between genes for high-dimensional data. Other clustering methods with greater flexibility should be implemented.
 
 
 ## Hierarchical clustering
@@ -460,7 +464,7 @@ The silhouette coefficient of EM algorithm is 0.12 and silhouette coefficient of
 
 ## Reference
 
-[1] “Gaussian Mixture Models Clustering Algorithm Explained” from <https://towardsdatascience.com/gaussian-mixture-models-d13a5e915c8e>
+[1] “Gaussian Mixture Models Clustering Algorithm Explained” from <https://towardsdatascience.com/gaussian-mixture-models-d13a5e915c8e>  
 [2]”Benchmarking principal component analysis for large-scale single-cell RNA-sequencing
 ” by Koki Tsuyuzaki1etc.
 
