@@ -72,7 +72,7 @@ sngcll_dp0 =
   sngcll[,drop_gene]
 ```
 
-Raw single-cell sequencing data is inflated with 0. According to Pierson (2015), PCA using zero-inflated is a less optimal approach in dimension reduction.Besides, zero-inflation(drop-out) event affecting the converging of EM clustering.  Followed the adjustment in the paper, we dropped genes with over 90% of zero inputs. 229 genes is used for further PCA and clustering after filtering.
+Raw single-cell sequencing data is inflated with 0. According to Pierson [3], PCA using zero-inflated is a less optimal approach in dimension reduction.Besides, zero-inflation(drop-out) event affecting the converging of EM clustering.  Followed the adjustment in the paper, we dropped genes with over 90% of zero inputs. 229 genes is used for further PCA and clustering after filtering.
 
 ## PCA
 
@@ -467,6 +467,10 @@ p1+p2 + p3 + p4 + plot_layout(nrow =2)+plot_annotation(title = "Top 4 features p
 
   SVM-RFE method choosing 20 to full genes subset as signature, indicating incapable to reduce features. For each cluster, SVM selected and rank the importance of each gene, the first five gene signature for cluster 1 is `r svm_1$optVariables[1:5]`, `r svm_2$optVariables[1:5]` for cluster 2, `r svm_3$optVariables[1:5]` for cluster 3 and , `r svm_4$optVariables[1:5]` for cluster 4. The number of gene signatures chosen to classify all clusters is 100, which its top 4 signature are plotted against PC component in quantile scale. According to the plot, these gene display similiar distribution to the the clusters.
 
+
+
+### Seurat
+
 ```{r Seurat}
 library(Seurat)
 seurat.data = as.matrix(scale(sngcll_dp0)) %>% t()
@@ -488,7 +492,7 @@ idff_genes = FindAllMarkers(sngcll_seurat,min.pct = 0.25)
 tibble(cluster_1 = head(diff_genes_1) %>% rownames(), 
        cluster_2 = head(diff_genes_2) %>% rownames(),
        cluster_3 = head(diff_genes_3) %>% rownames(),
-        cluster_4 = head(diff_genes_4) %>% rownames()) %>% 
+      cluster_4 = head(diff_genes_4) %>% rownames()) %>% 
   knitr::kable(caption = "Top 6 genes to differentiate the clusters")
 
 tibble(cluster = 1:4,
@@ -496,14 +500,11 @@ tibble(cluster = 1:4,
          c(nrow(diff_genes_1),nrow(diff_genes_2),nrow(diff_genes_3),nrow(diff_genes_4))) %>% 
   knitr::kable(caption = "Number of signature")
 
-VlnPlot(sngcll_seurat, features = c("cpxm1", "ccnb2"))
+VlnPlot(sngcll_seurat, features = c("timp1","higd1b"))
 ```
-
-### Seurat
-  Result from gaussian mixture clustering is used as response variable and conduct classification. 
   
 <<<<<<< HEAD
-Using the package Seurat, we are able to test the difference in gene expression across cluster, and select the gene signatures which shows significant different patterns among clusters by conducting Wilcoxon rank-sum test. No assumption is assigned using the non-parametric test such that it is validated to find gene signatures. Top 6 gene signatures is detected and shown above, in which each genes is sufficient to differentiate the clusters with significant different distribution for each cluster. Based on the violin plot, the gene CPXM1 in cluster 2 obviously differed with the distribution of expression level in other two clusters. Same for the gene ccnb2 in cluster 3.
+Using the package Seurat [4], we are able to test the difference in gene expression across cluster, and select the gene signatures which shows significant different patterns among clusters by conducting Wilcoxon rank-sum test. No assumption is assigned using the non-parametric test such that it is validated to find gene signatures. Top 6 gene signatures is detected and shown above, in which each genes is sufficient to differentiate the clusters with significant different distribution for each cluster. Based on the violin plot, the gene higd1b in cluster 2 obviously differed with the distribution of expression level in other three clusters. Same for the gene timp1 in cluster 1.
 
 
 ## Analysing Gaussian-Mixture model with Principal Component
