@@ -97,12 +97,9 @@ sngcll_pca =
 
 ```{r}
 pca_summary = summary(sngcll_pca)
-<<<<<<< HEAD
-=======
 pca_1 = fviz_eig(prcomp(sngcll_dp0), addlabels = TRUE, main = "PVEs before scaling")
 pca_2 = fviz_eig(sngcll_pca, addlabels = TRUE, main = "PVEs after scaling")
 gridExtra::grid.arrange(pca_1, pca_2, ncol = 2)
->>>>>>> c96a4e466e7785a034dbecb2b7742d1ce9bcf63f
 getpcfeatures = function(i) {
   df = pca_summary$rotation %>% 
     as.data.frame() %>%  mutate(feature = row.names(.)) %>% 
@@ -504,7 +501,8 @@ VlnPlot(sngcll_seurat, features = c("timp1","higd1b"))
 ```
   
 <<<<<<< HEAD
-Using the package Seurat [4], we are able to test the difference in gene expression across cluster, and select the gene signatures which shows significant different patterns among clusters by conducting Wilcoxon rank-sum test. No assumption is assigned using the non-parametric test such that it is validated to find gene signatures. Top 6 gene signatures is detected and shown above, in which each genes is sufficient to differentiate the clusters with significant different distribution for each cluster. Based on the violin plot, the gene higd1b in cluster 2 obviously differed with the distribution of expression level in other three clusters. Same for the gene timp1 in cluster 1.
+  Using the package Seurat [4], we are able to test the difference in gene expression across cluster, and select the gene signatures which shows significant different patterns among clusters by conducting Wilcoxon rank-sum test. No assumption is assigned using the non-parametric test such that it is validated to find gene signatures. Top 6 gene signatures is detected and shown above, in which each genes is sufficient to differentiate the clusters with significant different distribution for each cluster. Based on the violin plot, the gene higd1b in cluster 2 obviously differed with the distribution of expression level in other three clusters. Same for the gene timp1 in cluster 1.  
+  Comparing signature of seurat wilcoxon rank test and svm-rfe method, wilcoxon rank test is better in terms of variation of numbers of signature, but the number of signatures are too high. Whereas SVM-RFE successfully selected fewer signature in some cases and maintain high predictabiliy. Top 5 signatures selected are also varies in two methods.
 
 
 ## Analysing Gaussian-Mixture model with Principal Component
@@ -581,15 +579,6 @@ fviz_gap_stat(gap_stat)
 
 In order to determine the optimal number of clusters, we applied Average Silhouette Method and Gap Statistic Method. Silhouette Method indicates that two-clusters-model fits our data best, while Gap Statistic Method shows that three-clusters is more suitable. After applying different clusters, we found that when we choose cluster = 3, each cluster has 548, 140, 28 items. When cluster = 2, each cluster has 548, 168 items. 
 
-
-## Conclusion
-
-In this analysis, we use Gaussian-Mixture model with Principal Component Analysis to explore our dataset.Gaussian mixture model performs soft classification, which means that it can gives us the probability that a given data point belongs to each of the possible clusters [1]. Besides, since our data takes on different shape, it’s better to use Gaussian. Principal component analysis (PCA) is an essential method for analyzing single-cell RNA-seq (scRNA-seq) datasets, but for large-scale scRNA-seq datasets, since PCA algorithms and implementations load all elements of the data matrix into the memory space, which means that method computation time is long and consumes large amounts of memory. Apart from that, the workflow of PCA is redundant and repeated, which can be replaced by fast PCA algorithms, like “Julia” package[2]. Finally. as for EM algorithm, it has many drawbacks, which we've already talked above, like time consuming and its convergence and convergent time only depends on initialization, which can generate hug divergence.
-=======
-  Using the package Seurat, we are able to test the difference in gene expression across cluster, and select the gene signatures which shows significant different patterns among clusters by conducting Wilcoxon rank-sum test. No assumption is assigned using the non-parametric test such that it is validated to find gene signatures. Top 6 gene signatures is detected and shown above, in which each genes is sufficient to differentiate the clusters with significant different distribution for each cluster. Based on the violin plot, the gene CPXM1 in cluster 2 obviously differed with the distribution of expression level in other two clusters. Same for the gene ccnb2 in cluster 3.
->>>>>>> c96a4e466e7785a034dbecb2b7742d1ce9bcf63f
-
- Comparing signature of seurat wilcoxon rank test and svm-rfe method, wilcoxon rank test is better in terms of variation of numbers of signature, but the number of signatures are too high. Whereas SVM-RFE successfully selected fewer signature in some cases and maintain high predictabiliy. Top 5 signatures selected are also varies in two methods.
 
 # Conclusion
 
