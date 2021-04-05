@@ -334,7 +334,7 @@ plot(silhouette(cutree(hc5, k = 2), dist(gene, method = "euclidean")))
 plot(silhouette(unlist(rslt_2[which(rslt_2[,"k"]==4),"cluster"]), dist(gene, method = "euclidean")))
 ```
 
-The silhouette coefficient of EM algorithm is 0.12 and silhouette coefficient of hierarchical clustering is 0.21. A higher Silhouette Coefficient score relates to a model with better defined clusters. Therefore, the performance of hierarchical clustering is better than EM algorithm.
+The silhouette coefficient of EM algorithm is 0.08 and silhouette coefficient of hierarchical clustering is 0.21. A higher Silhouette Coefficient score relates to a model with better defined clusters. Therefore, the performance of hierarchical clustering is better than EM algorithm.
 
 ## Gene-expression signatures
   
@@ -502,7 +502,7 @@ VlnPlot(sngcll_seurat, features = c("timp1","higd1b"))
   
 <<<<<<< HEAD
   Using the package Seurat [4], we are able to test the difference in gene expression across cluster, and select the gene signatures which shows significant different patterns among clusters by conducting Wilcoxon rank-sum test. No assumption is assigned using the non-parametric test such that it is validated to find gene signatures. Top 6 gene signatures is detected and shown above, in which each genes is sufficient to differentiate the clusters with significant different distribution for each cluster. Based on the violin plot, the gene higd1b in cluster 2 obviously differed with the distribution of expression level in other three clusters. Same for the gene timp1 in cluster 1.  
-  Comparing signature of seurat wilcoxon rank test and svm-rfe method, wilcoxon rank test is better in terms of variation of numbers of signature, but the number of signatures are too high. Whereas SVM-RFE successfully selected fewer signature in some cases and maintain high predictabiliy. Top 5 signatures selected are also varies in two methods.
+  Comparing signature of seurat wilcoxon rank test and svm-rfe method, Wilcoxon rank test is better in terms of variation of numbers of signature, but the number of signatures are too high. Whereas SVM-RFE successfully selected fewer signature in some cases and maintain high predictability. Top 5 signatures selected are also varies in two methods.
 
 
 ## Analysing Gaussian-Mixture model with Principal Component
@@ -543,7 +543,7 @@ hc1 <- hclust(d, method = "complete" )
 # Plot the obtained dendrogram
 plot(hc1, cex = 0.6, hang = -1)
 ```
-Ward’s minimum variance method: It minimizes the total within-cluster variance. At each step the pair of clusters with minimum between-cluster distance are merged.
+* Ward’s minimum variance method: It minimizes the total within-cluster variance. At each step the pair of clusters with minimum between-cluster distance are merged.
 
 ```{r}
 # Ward's method
@@ -577,21 +577,40 @@ gap_stat <- clusGap(gene, FUN = hcut, nstart = 25, K.max = 10, B = 50)
 fviz_gap_stat(gap_stat)
 ```
 
-In order to determine the optimal number of clusters, we applied Average Silhouette Method and Gap Statistic Method. Silhouette Method indicates that two-clusters-model fits our data best, while Gap Statistic Method shows that three-clusters is more suitable. After applying different clusters, we found that when we choose cluster = 3, each cluster has 548, 140, 28 items. When cluster = 2, each cluster has 548, 168 items. 
+In order to determine the optimal number of clusters, we applied Average Silhouette Method and Gap Statistic Method. Silhouette Method indicates that two-clusters-model fits our data best, while Gap Statistic Method shows that three-clusters is more suitable. After applying different clusters, we found that when we choose cluster = 3, each cluster has 548, 140, 28 items respectively. When cluster = 2, each cluster has 548, 168 items respectively. 
 
 
 # Conclusion
 
-In this analysis, we use Gaussian-Mixture model with Principal Component Analysis to explore our dataset.Gaussian mixture model performs soft classification, which means that it can gives us the probability that a given data point belongs to each of the possible clusters [1]. Besides, since our data takes on different shape, it’s better to use Gaussian. Principal component analysis (PCA) is an essential method for analyzing single-cell RNA-seq (scRNA-seq) datasets, but for large-scale scRNA-seq datasets, since PCA algorithms and implementations load all elements of the data matrix into the memory space, which means that method computation time is long and consumes large amounts of memory. Apart from that, the workflow of PCA is redundant and repeated, which can be replaced by fast PCA algorithms, like “Julia” package[2]. Finally. as for EM algorithm,   clustering cell with EM algorithm has several drawbacks. The first of all shared problem with EM algorithm is slow computational time, \cite{very_fast} has compared EM based method with hierarchical methods, and EM method is slower. The second problem is that EM algorithm's convergence and convergent time are rely on the initialization, a well separated center for initialization provide fast convergence, on the other hand, bad initialization lead to divergence. But the initialization is randomly assigned uniformly,  as a result, convergence is not always guaranteed. The third problem is that gaussian model may not fit RNA sequence expression. \cite{ZIFA} has pointed out that drop-out event leads to zero-inflated data, and gaussian mixture cannot address this problem. Also, \cite{poisson} provides poisson-mixture as a alternative for gaussian mixture.. Another problem with model-based method is over-estimating. Model-based method has tendency to over-estimate number of cluster, for example, AIC method do not penalize much when K is large, leading to potential of over-estimating.
+In this analysis, we use Gaussian-Mixture model with Principal Component Analysis to explore our dataset. Gaussian mixture model performs soft classification, which means that it can gives us the probability that a given data point belongs to each of the possible clusters. Besides, since our data takes on different shape, it’s better to use Gaussian. Principal component analysis (PCA) is an essential method for analyzing single-cell RNA-seq (scRNA-seq) datasets, but for large-scale scRNA-seq datasets, since PCA algorithms and implementations load all elements of the data matrix into the memory space, which means that method computation time is long and consumes large amounts of memory. Apart from that, the workflow of PCA is redundant and repeated, which can be replaced by fast PCA algorithms, like “Julia” package. Finally, as for EM algorithm, clustering cell with EM algorithm has several drawbacks. The first of all shared problem with EM algorithm is slow computational time, Peijie Lin etc. has compared EM based method with hierarchical methods, and EM method is slower. The second problem is that EM algorithm's convergence and convergent time are rely on the initialization, a well separated center for initialization provide fast convergence, on the other hand, bad initialization lead to divergence. But the initialization is randomly assigned uniformly, as a result, convergence is not always guaranteed. The third problem is that gaussian model may not fit RNA sequence expression. Emma Pierson has pointed out that drop-out event leads to zero-inflated data, and gaussian mixture cannot address this problem. Also, poisson provides poisson-mixture as a alternative for gaussian mixture. Another problem with model-based method is over-estimating. Model-based method has tendency to over-estimate number of cluster, for example, AIC method do not penalize much when K is large, leading to potential of over-estimating.
 
-  On the other hand, graphical method, hierarchical and k-means method do not have strong model assumption as EM method. According to \cite{system}, Graphical method `Seurat` has the fastest run time, followed by biracial method. Model based method is just faster than k-means methods. 
+  On the other hand, graphical method, hierarchical and k-means method do not have strong model assumption as EM method. According to Angelo Duò ect., Graphical method `Seurat` has the fastest run time, followed by biracial method. Model based method is just faster than k-means methods. 
 
 ## Reference
 
-[1] “Gaussian Mixture Models Clustering Algorithm Explained” from <https://towardsdatascience.com/gaussian-mixture-models-d13a5e915c8e>  
-[2] ”Benchmarking principal component analysis for large-scale single-cell RNA-sequencing
-” by Koki Tsuyuzaki1etc.  
-[3] "ZIFA: Dimensionality reduction for zero-inflated single-cell gene expression analysis" by Emma Pierson and Christopher Yau  
-[4] "Integrated analysis of multimodal single-cell data" by Hao and Hao et al
+[1]"ZIFA: Dimensionality reduction for zero-inflated single-cell gene expression analysis" by Emma Pierson and Christopher Yau
+
+[2]"Gaussian Mixture Models Clustering Algorithm Explained" from
+<https://towardsdatascience.com/gaussian-mixture-models-d13a5e915c8e>
+
+[3]"Benchmarking principal component analysis for large-scale single-cell RNA-sequencing" by Koki Tsuyuzaki1etc.
+
+[4]"CIDR: Ultrafast and accurate clustering through imputation for single-cell RNA-seq data" by Peijie Lin, Michael Troup and Joshua W. K. Ho.
+
+[5]"A systematic performance evaluation of clustering methods for single-cell RNA-seq data [version 3; peer review: 2 approved]" by Angelo Duò, Mark D. Robinson, Charlotte Soneson 
+
+[6]"Sparse graphical models for exploring gene expression data" by Adrian Dobra, Chris Hans, Beatrix Jones, Joseph R. Nevins, Guang Yao, and MikeWest
+
+[7]"pcaReduce: hierarchical clustering of single cell transcriptional profiles" by Justina Žurauskiene and Christopher Yau
+
+[8]"Graphical models for zero-inflated single cell gene expression" by Andrew Mcdavid, Raphael Gottardo, Noah Simon and Mathias Drton
+
+[9]"Supplementary Information for Spatial reconstruction of single-cell gene expression" by Rahul Satija and Jeffrey A. Farrell, David Gennert, Alexander F. Schier, and Aviv Regev
+
+[10]"Model-based clustering for RNA-seq data" by Yaqing Si1, Peng Liu2, Pinghua Li and Thomas P. Brutnell
+
+[11]"Comparing multiple RNA secondary structures using tree comparisons" by Bruce A.Shapiro and Kaizhong Zhang
+
+[12] "Integrated analysis of multimodal single-cell data" by Hao and Hao et al
 
 
