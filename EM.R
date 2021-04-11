@@ -38,7 +38,7 @@ objective =
       L = sum(log(Pr))
       
       if (method == "AIC") {
-        Df = sum(ncol(mu)*(k+1),k)-1
+        Df = sum(ncol(mu)*(k+1),k*ncol(mu)*(ncol(mu)-1)/2,k)-1
         return(-2*(L-Df))}
       
       return(L)}
